@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 
@@ -10,8 +11,17 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 )
 
+var subscriptionID = flag.String("subscription-id", "", "The ID of the subscription.")
+
 func main() {
-	fmt.Printf("Hello, world.\n")
+	flag.Parse()
+	if *subscriptionID == "" {
+		log.Fatal("You must provide a subscription id by using the --subscription-id flag.")
+	}
+	iter, err := getUsageIterator(*subscriptionID)
+	if err == nil {
+		extractUsage(iter)
+	}
 }
 
 func getUsageIterator(subscriptionID string) (consumption.UsageDetailsListResultIterator, error) {
@@ -23,7 +33,6 @@ func getUsageIterator(subscriptionID string) (consumption.UsageDetailsListResult
 		usageClient.Authorizer = authorizer
 	} else {
 		log.Fatal(err)
-		return result, err
 	}
 
 	expand := ""
