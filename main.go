@@ -9,6 +9,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/consumption/mgmt/2018-05-31/consumption"
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
 
+	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 )
 
@@ -17,13 +18,21 @@ var (
 	addr           = flag.String("listen-address", ":8080", "The address to listen on for (scraping) HTTP requests.")
 )
 
+var authorizer autorest.Authorizer
+
 func main() {
 	flag.Parse()
 	if *subscriptionID == "" {
 		log.Fatal("You must provide a subscription id by using the --subscription-id flag.")
 	}
-	// iter := getUsageIterator(*subscriptionID)
-	// printUsage(iter)
+
+	// Initialize authorizer
+	var err error
+	authorizer, err = auth.NewAuthorizerFromEnvironment()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	periodsIterator, err := getPeriodsIterator(*subscriptionID)
 	if err != nil {
 		log.Fatal(err)
@@ -32,15 +41,8 @@ func main() {
 }
 
 func getUsageIterator(billingPeriod string) consumption.UsageDetailsListResultIterator {
-	var result consumption.UsageDetailsListResultIterator
-
 	usageClient := consumption.NewUsageDetailsClient(*subscriptionID)
-	authorizer, err := auth.NewAuthorizerFromEnvironment()
-	if err == nil {
-		usageClient.Authorizer = authorizer
-	} else {
-		log.Fatal(err)
-	}
+	usageClient.Authorizer = authorizer
 
 	expand := ""
 	// filter := "properties/usageEnd le '2018-07-02' AND properties/usageEnd ge '2018-06-30'"
@@ -49,7 +51,7 @@ func getUsageIterator(billingPeriod string) consumption.UsageDetailsListResultIt
 	var top int32 = 100
 	apply := ""
 	log.Println("Trying to get list from billing period", billingPeriod)
-	result, err = usageClient.ListByBillingPeriodComplete(context.Background(), billingPeriod, expand, filter, apply, skiptoken, &top)
+	result, err := usageClient.ListByBillingPeriodComplete(context.Background(), billingPeriod, expand, filter, apply, skiptoken, &top)
 
 	if err == nil {
 		log.Println("Got a list!")
@@ -87,12 +89,7 @@ func printUsage(usageIterator consumption.UsageDetailsListResultIterator) {
 
 func getPeriodsIterator(subscriptionID string) (billing.PeriodsListResultIterator, error) {
 	periodsClient := billing.NewPeriodsClient(subscriptionID)
-	authorizer, err := auth.NewAuthorizerFromEnvironment()
-	if err == nil {
-		periodsClient.Authorizer = authorizer
-	} else {
-		log.Fatal(err)
-	}
+	periodsClient.Authorizer = authorizer
 
 	// filter := "billingPeriodEndDate lt 2018-05-30"
 	filter := ""
