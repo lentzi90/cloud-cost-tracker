@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"time"
 
 	"github.com/Azure/go-autorest/autorest"
 )
@@ -21,5 +22,7 @@ func main() {
 	}
 
 	usageExplorer := NewUsageExplorer(*subscriptionID)
-	usageExplorer.PrintCurrentUsage()
+	// usageExplorer.PrintCurrentUsage()
+	date := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
+	usageExplorer.getUsageDetails(date)
 }
