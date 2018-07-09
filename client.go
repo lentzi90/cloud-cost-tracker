@@ -1,5 +1,7 @@
 package main
 
+//go:generate mockgen -destination=./mocks/client_mock.go -package=mocks -source=client.go
+
 import (
 	"context"
 	"log"
@@ -17,8 +19,16 @@ type Client interface {
 
 // RestClient is a simple implementation of Client
 type RestClient struct {
-	periodsClient billing.PeriodsClient
-	usageClient   consumption.UsageDetailsClient
+	periodsClient billingClient
+	usageClient   consumptionClient
+}
+
+type billingClient interface {
+	ListComplete(ctx context.Context, filter string, skiptoken string, top *int32) (result billing.PeriodsListResultIterator, err error)
+}
+
+type consumptionClient interface {
+	ListByBillingPeriodComplete(ctx context.Context, billingPeriodName string, expand string, filter string, apply string, skiptoken string, top *int32) (result consumption.UsageDetailsListResultIterator, err error)
 }
 
 // NewRestClient returns a RestClient for the given subscription ID.

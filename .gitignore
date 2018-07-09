@@ -13,3 +13,6 @@
 
 # Files containing credentials or other sensitive information
 run.sh
+
+# Mocks are generated and not needed in version control
+mocks
