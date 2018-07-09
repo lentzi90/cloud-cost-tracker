@@ -21,7 +21,8 @@ func main() {
 		log.Fatal("You must provide a subscription id by using the --subscription-id flag.")
 	}
 
-	usageExplorer := NewUsageExplorer(*subscriptionID)
+	client := NewRestClient(*subscriptionID)
+	usageExplorer := NewUsageExplorer(client)
 	// usageExplorer.PrintCurrentUsage()
 	date := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
 	usageExplorer.getUsageDetails(date)
