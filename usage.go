@@ -11,6 +11,14 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// UsageData TODO: move this to DBClient?
+type UsageData struct {
+	cost     decimal.Decimal
+	currency string
+	date     time.Time
+	labels   map[string]string
+}
+
 // A UsageExplorer can be used to investigate usage cost
 type UsageExplorer struct {
 	client Client
@@ -21,13 +29,12 @@ func NewUsageExplorer(client Client) UsageExplorer {
 	return UsageExplorer{client: client}
 }
 
-// PrintCurrentUsage prints the usage for the current billing period
-func (e *UsageExplorer) PrintCurrentUsage() {
-	periods := e.client.GetPeriodIterator("")
-	usageIterator := e.client.GetUsageIterator(*periods.Value().Name, "")
-	fmt.Println("Pretax cost Currency, Usage start - Usage end, Provider")
-	fmt.Println("----------------------------------------------------------")
-	// For all values, print some information
+// GetCloudCost fetches the cost for the specified date
+func (e *UsageExplorer) GetCloudCost(date time.Time) []UsageData {
+	usageIterator := e.getUsageByDate(date)
+	providers := make(map[string]decimal.Decimal)
+	var data []UsageData
+
 	for usageIterator.NotDone() {
 		usageDetails := usageIterator.Value()
 		instanceID := *usageDetails.InstanceID
@@ -38,9 +45,18 @@ func (e *UsageExplorer) PrintCurrentUsage() {
 		// isEstimated := *usageDetails.IsEstimated
 
 		resourceProvider := getProvider(instanceID)
-		fmt.Printf("%s %s, %s - %s, %s\n", pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), usageEnd.Format("2006-01-02 15:04"), resourceProvider)
+		providers[resourceProvider] = decimal.Sum(providers[resourceProvider], pretaxCost)
+		log.Printf("%s %s, %s - %s, %s\n", pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), usageEnd.Format("2006-01-02 15:04"), resourceProvider)
+
+		labels := make(map[string]string)
+		labels["provider"] = resourceProvider
+		data = append(data, UsageData{cost: pretaxCost, currency: currency, date: date, labels: labels})
+
 		usageIterator.Next()
 	}
+
+	fmt.Println(data)
+	return data
 }
 
 func (e *UsageExplorer) getPeriodByDate(date time.Time) billing.Period {
@@ -56,9 +72,10 @@ func (e *UsageExplorer) getPeriodByDate(date time.Time) billing.Period {
 func (e *UsageExplorer) getUsageByDate(date time.Time) consumption.UsageDetailsListResultIterator {
 	billingPeriod := *e.getPeriodByDate(date).Name
 	filter := fmt.Sprintf("properties/usageStart eq '%s'", date.Format("2006-01-02"))
-	log.Println("Trying to get list from billing period", billingPeriod)
+	log.Println("Trying to get usage for billing period", billingPeriod)
 
 	result := e.client.GetUsageIterator(billingPeriod, filter)
+	log.Println("Success!")
 
 	return result
 }
@@ -70,27 +87,4 @@ func getProvider(instanceID string) string {
 	// We extract the provider by splitting on /
 	parts := strings.Split(instanceID, "/")
 	return strings.Join(parts[6:8], "/")
-}
-
-func (e *UsageExplorer) getUsageDetails(date time.Time) {
-	usageIterator := e.getUsageByDate(date)
-	providers := make(map[string]decimal.Decimal)
-
-	for usageIterator.NotDone() {
-		usageDetails := usageIterator.Value()
-		instanceID := *usageDetails.InstanceID
-		pretaxCost := *usageDetails.PretaxCost
-		currency := *usageDetails.Currency
-		usageStart := *usageDetails.UsageStart
-		usageEnd := *usageDetails.UsageEnd
-		// isEstimated := *usageDetails.IsEstimated
-
-		resourceProvider := getProvider(instanceID)
-		providers[resourceProvider] = decimal.Sum(providers[resourceProvider], pretaxCost)
-		fmt.Printf("%s %s, %s - %s, %s\n", pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), usageEnd.Format("2006-01-02 15:04"), resourceProvider)
-
-		usageIterator.Next()
-	}
-
-	fmt.Println(providers)
 }
