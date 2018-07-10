@@ -1,6 +1,6 @@
 package cct_azure
 
-//go:generate mockgen -destination=./mocks/client_mock.go -package=mocks -source=client.go
+//go:generate mockgen -destination=./client_mock.go -package=cct_azure -source=client.go
 
 import (
 	"context"
@@ -13,8 +13,8 @@ import (
 
 // Client interface is made to simplify testing
 type Client interface {
-	GetPeriodIterator(string) (billing.PeriodsListResultIterator, error)
-	GetUsageIterator(billingPeriod, filter string) (consumption.UsageDetailsListResultIterator, error)
+	getPeriodIterator(string) (periodsIterator, error)
+	getUsageIterator(billingPeriod, filter string) (usageIterator, error)
 }
 
 // RestClient is a simple implementation of Client
@@ -29,6 +29,18 @@ type billingClient interface {
 
 type consumptionClient interface {
 	ListByBillingPeriodComplete(ctx context.Context, billingPeriodName string, expand string, filter string, apply string, skiptoken string, top *int32) (result consumption.UsageDetailsListResultIterator, err error)
+}
+
+type usageIterator interface {
+	Next() error
+	NotDone() bool
+	Value() consumption.UsageDetail
+}
+
+type periodsIterator interface {
+	Next() error
+	NotDone() bool
+	Value() billing.Period
 }
 
 // NewRestClient returns a RestClient for the given subscription ID.
@@ -46,14 +58,14 @@ func NewRestClient(subscriptionID string) Client {
 	return RestClient{periodsClient: periodsClient, usageClient: usageClient}
 }
 
-// GetPeriodIterator returns a PeriodsListResultIterator given a filter string
-func (c RestClient) GetPeriodIterator(filter string) (billing.PeriodsListResultIterator, error) {
+func (c RestClient) getPeriodIterator(filter string) (periodsIterator, error) {
 	var top int32 = 100
-	return c.periodsClient.ListComplete(context.Background(), filter, "", &top)
+	result, err := c.periodsClient.ListComplete(context.Background(), filter, "", &top)
+	return &result, err
 }
 
-// GetUsageIterator returns a new UsageDetailsListResultIterator over a given billing period and filter
-func (c RestClient) GetUsageIterator(billingPeriod, filter string) (consumption.UsageDetailsListResultIterator, error) {
+func (c RestClient) getUsageIterator(billingPeriod, filter string) (usageIterator, error) {
 	var top int32 = 100
-	return c.usageClient.ListByBillingPeriodComplete(context.Background(), billingPeriod, "", filter, "", "", &top)
+	result, err := c.usageClient.ListByBillingPeriodComplete(context.Background(), billingPeriod, "", filter, "", "", &top)
+	return &result, err
 }

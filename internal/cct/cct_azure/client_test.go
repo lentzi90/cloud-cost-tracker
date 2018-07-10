@@ -7,15 +7,14 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/consumption/mgmt/2018-05-31/consumption"
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
 	"github.com/golang/mock/gomock"
-	"github.com/lentzi90/cct-azure/internal/cct/cct_azure/mocks"
 )
 
 func TestGetPeriodIterator(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	mockBilling := mocks.NewMockbillingClient(mockCtrl)
-	mockConsumption := mocks.NewMockconsumptionClient(mockCtrl)
+	mockBilling := NewMockbillingClient(mockCtrl)
+	mockConsumption := NewMockconsumptionClient(mockCtrl)
 
 	t.Run("Error from ListComplete", func(t *testing.T) {
 		err0 := errors.New("error")
@@ -23,7 +22,7 @@ func TestGetPeriodIterator(t *testing.T) {
 		mockBilling.EXPECT().ListComplete(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(expected, err0)
 		client := RestClient{mockBilling, mockConsumption}
 
-		_, err := client.GetPeriodIterator("")
+		_, err := client.getPeriodIterator("")
 
 		if err == nil {
 			t.Errorf("Expected error but got none!")
@@ -36,7 +35,7 @@ func TestGetPeriodIterator(t *testing.T) {
 		mockBilling.EXPECT().ListComplete(gomock.Any(), filter, gomock.Any(), gomock.Any()).Return(expected, nil)
 		client := RestClient{mockBilling, mockConsumption}
 
-		actual, err := client.GetPeriodIterator(filter)
+		actual, err := client.getPeriodIterator(filter)
 		if err != nil {
 			t.Errorf("Caught error: %s", err)
 		}
@@ -50,8 +49,8 @@ func TestGetUsageIterator(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	mockBilling := mocks.NewMockbillingClient(mockCtrl)
-	mockConsumption := mocks.NewMockconsumptionClient(mockCtrl)
+	mockBilling := NewMockbillingClient(mockCtrl)
+	mockConsumption := NewMockconsumptionClient(mockCtrl)
 
 	billingPeriod := "201809-1"
 	filter := "filter"
@@ -62,7 +61,7 @@ func TestGetUsageIterator(t *testing.T) {
 		mockConsumption.EXPECT().ListByBillingPeriodComplete(gomock.Any(), billingPeriod, gomock.Any(), filter, gomock.Any(), gomock.Any(), gomock.Any()).Return(expected, err0)
 		client := RestClient{mockBilling, mockConsumption}
 
-		_, err := client.GetUsageIterator(billingPeriod, filter)
+		_, err := client.getUsageIterator(billingPeriod, filter)
 
 		if err == nil {
 			t.Errorf("Expected error but got none!")
@@ -74,7 +73,7 @@ func TestGetUsageIterator(t *testing.T) {
 		mockConsumption.EXPECT().ListByBillingPeriodComplete(gomock.Any(), billingPeriod, gomock.Any(), filter, gomock.Any(), gomock.Any(), gomock.Any()).Return(expected, nil)
 		client := RestClient{mockBilling, mockConsumption}
 
-		actual, err := client.GetUsageIterator(billingPeriod, filter)
+		actual, err := client.getUsageIterator(billingPeriod, filter)
 
 		if err != nil {
 			t.Errorf("Caught error: %s", err)

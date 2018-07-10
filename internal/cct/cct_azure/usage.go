@@ -26,31 +26,38 @@ func NewUsageExplorer(client Client) UsageExplorer {
 // GetCloudCost fetches the cost for the specified date
 func (e *UsageExplorer) GetCloudCost(date time.Time) ([]db_client.UsageData, error) {
 	var data []db_client.UsageData
-	usageIterator, err := e.getUsageByDate(date)
+	usageIter, err := e.getUsageByDate(date)
 	if err != nil {
 		return data, err
 	}
 	providers := make(map[string]decimal.Decimal)
 
-	for usageIterator.NotDone() {
-		usageDetails := usageIterator.Value()
+	for usageIter.NotDone() {
+		usageDetails := usageIter.Value()
+		// Check that these fields actually exist!
+		if (usageDetails.UsageDetailProperties == nil) ||
+			(usageDetails.UsageStart == nil) ||
+			(usageDetails.PretaxCost == nil) ||
+			(usageDetails.Currency == nil) ||
+			(usageDetails.InstanceID == nil) {
+			continue
+		}
 		instanceID := *usageDetails.InstanceID
 		pretaxCost := *usageDetails.PretaxCost
 		currency := *usageDetails.Currency
 		usageStart := *usageDetails.UsageStart
-		usageEnd := *usageDetails.UsageEnd
 		// isEstimated := *usageDetails.IsEstimated
 
 		resourceProvider := getProvider(instanceID)
 		providers[resourceProvider] = decimal.Sum(providers[resourceProvider], pretaxCost)
-		log.Printf("%s %s, %s - %s, %s\n", pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), usageEnd.Format("2006-01-02 15:04"), resourceProvider)
+		log.Printf("%s %s, %s, %s\n", pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), resourceProvider)
 
 		labels := make(map[string]string)
 		labels["provider"] = resourceProvider
 		cost, _ := pretaxCost.Float64()
 		data = append(data, db_client.UsageData{Cost: cost, Currency: currency, Date: date, Labels: labels})
 
-		usageIterator.Next()
+		usageIter.Next()
 	}
 
 	fmt.Println(data)
@@ -61,7 +68,7 @@ func (e *UsageExplorer) getPeriodByDate(date time.Time) (billing.Period, error) 
 	dateStr := date.Format("2006-01-02")
 	filter := "billingPeriodEndDate gt " + dateStr
 
-	periods, err := e.client.GetPeriodIterator(filter)
+	periods, err := e.client.getPeriodIterator(filter)
 	if err != nil {
 		return billing.Period{}, err
 	}
@@ -70,18 +77,18 @@ func (e *UsageExplorer) getPeriodByDate(date time.Time) (billing.Period, error) 
 	return periods.Value(), nil
 }
 
-func (e *UsageExplorer) getUsageByDate(date time.Time) (consumption.UsageDetailsListResultIterator, error) {
+func (e *UsageExplorer) getUsageByDate(date time.Time) (usageIterator, error) {
 	billingPeriod, err := e.getPeriodByDate(date)
 	if err != nil {
-		return consumption.UsageDetailsListResultIterator{}, err
+		return &consumption.UsageDetailsListResultIterator{}, err
 	}
 	billingPeriodName := *billingPeriod.Name
 	filter := fmt.Sprintf("properties/usageStart eq '%s'", date.Format("2006-01-02"))
 	log.Println("Trying to get usage for billing period", billingPeriodName)
 
-	result, err := e.client.GetUsageIterator(billingPeriodName, filter)
+	result, err := e.client.getUsageIterator(billingPeriodName, filter)
 	if err != nil {
-		return consumption.UsageDetailsListResultIterator{}, err
+		return &consumption.UsageDetailsListResultIterator{}, err
 	}
 	log.Println("Success!")
 
