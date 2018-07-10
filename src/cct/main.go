@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"cct/cct_azure"
-	"cct/db_client"
+	"github.com/lentzi90/cct-azure/src/cct/cct_azure"
+	"github.com/lentzi90/cct-azure/src/cct/db_client"
 )
 
 var subscriptionID = flag.String("subscription-id", "", "The ID of the subscription.")
@@ -36,8 +36,12 @@ func main() {
 	for i := 0; i < 35; i++ {
 		fetchTime := now.AddDate(0, 0, -i)
 		fmt.Println("Getting for period", fetchTime)
-		test := usageExplorer.GetCloudCost(fetchTime)
-		db.AddUsageData(test)
+		test, err := usageExplorer.GetCloudCost(fetchTime)
+		if err == nil {
+			db.AddUsageData(test)
+		} else {
+			log.Println("Got error, skipping usage data:", err)
+		}
 	}
 
 	log.Println("DONE!!!")

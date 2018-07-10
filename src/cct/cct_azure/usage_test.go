@@ -1,6 +1,7 @@
 package cct_azure
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -42,11 +43,15 @@ func TestGetCloudCost(t *testing.T) {
 	// i := 0
 	// page := billing.PeriodsListResultPage{}
 	periodIter := billing.PeriodsListResultIterator{}
-	mockClient.EXPECT().GetPeriodIterator(gomock.Any()).Return(periodIter)
+	mockClient.EXPECT().GetPeriodIterator(gomock.Any()).Return(periodIter, errors.New("error"))
 
 	date := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
 	// var expected []UsageData = nil
-	actual := ue.GetCloudCost(date)
+	actual, err := ue.GetCloudCost(date)
+
+	if err == nil {
+		t.Errorf("Expected error but got none!")
+	}
 
 	if actual != nil {
 		t.Errorf("Expected and actual differ!")

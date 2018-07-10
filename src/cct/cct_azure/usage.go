@@ -24,10 +24,13 @@ func NewUsageExplorer(client Client) UsageExplorer {
 }
 
 // GetCloudCost fetches the cost for the specified date
-func (e *UsageExplorer) GetCloudCost(date time.Time) []db_client.UsageData {
-	usageIterator := e.getUsageByDate(date)
-	providers := make(map[string]decimal.Decimal)
+func (e *UsageExplorer) GetCloudCost(date time.Time) ([]db_client.UsageData, error) {
 	var data []db_client.UsageData
+	usageIterator, err := e.getUsageByDate(date)
+	if err != nil {
+		return data, err
+	}
+	providers := make(map[string]decimal.Decimal)
 
 	for usageIterator.NotDone() {
 		usageDetails := usageIterator.Value()
@@ -50,32 +53,38 @@ func (e *UsageExplorer) GetCloudCost(date time.Time) []db_client.UsageData {
 	}
 
 	fmt.Println(data)
-	return data
+	return data, nil
 }
 
-func (e *UsageExplorer) getPeriodByDate(date time.Time) billing.Period {
+func (e *UsageExplorer) getPeriodByDate(date time.Time) (billing.Period, error) {
 	dateStr := date.Format("2006-01-02")
 	filter := "billingPeriodEndDate gt " + dateStr
 
-	periods := e.client.GetPeriodIterator(filter)
+	periods, err := e.client.GetPeriodIterator(filter)
+	if err != nil {
+		return billing.Period{}, err
+	}
 	// Periods are returned in reverse chronologic order, so we return the first one.
 	// This will be the billing period including date
-	return periods.Value()
+	return periods.Value(), nil
 }
 
-func (e *UsageExplorer) getUsageByDate(date time.Time) consumption.UsageDetailsListResultIterator {
-	billingPeriod := e.getPeriodByDate(date)
-	if billingPeriod.Name == nil {
-		log.Fatal("No billing available")
+func (e *UsageExplorer) getUsageByDate(date time.Time) (consumption.UsageDetailsListResultIterator, error) {
+	billingPeriod, err := e.getPeriodByDate(date)
+	if err != nil {
+		return consumption.UsageDetailsListResultIterator{}, err
 	}
 	billingPeriodName := *billingPeriod.Name
 	filter := fmt.Sprintf("properties/usageStart eq '%s'", date.Format("2006-01-02"))
 	log.Println("Trying to get usage for billing period", billingPeriodName)
 
-	result := e.client.GetUsageIterator(billingPeriodName, filter)
+	result, err := e.client.GetUsageIterator(billingPeriodName, filter)
+	if err != nil {
+		return consumption.UsageDetailsListResultIterator{}, err
+	}
 	log.Println("Success!")
 
-	return result
+	return result, nil
 }
 
 func getProvider(instanceID string) string {

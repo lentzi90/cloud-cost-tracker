@@ -13,8 +13,8 @@ import (
 
 // Client interface is made to simplify testing
 type Client interface {
-	GetPeriodIterator(string) billing.PeriodsListResultIterator
-	GetUsageIterator(billingPeriod, filter string) consumption.UsageDetailsListResultIterator
+	GetPeriodIterator(string) (billing.PeriodsListResultIterator, error)
+	GetUsageIterator(billingPeriod, filter string) (consumption.UsageDetailsListResultIterator, error)
 }
 
 // RestClient is a simple implementation of Client
@@ -47,21 +47,13 @@ func NewRestClient(subscriptionID string) Client {
 }
 
 // GetPeriodIterator returns a PeriodsListResultIterator given a filter string
-func (c RestClient) GetPeriodIterator(filter string) billing.PeriodsListResultIterator {
+func (c RestClient) GetPeriodIterator(filter string) (billing.PeriodsListResultIterator, error) {
 	var top int32 = 100
-	result, err := c.periodsClient.ListComplete(context.Background(), filter, "", &top)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return result
+	return c.periodsClient.ListComplete(context.Background(), filter, "", &top)
 }
 
 // GetUsageIterator returns a new UsageDetailsListResultIterator over a given billing period and filter
-func (c RestClient) GetUsageIterator(billingPeriod, filter string) consumption.UsageDetailsListResultIterator {
+func (c RestClient) GetUsageIterator(billingPeriod, filter string) (consumption.UsageDetailsListResultIterator, error) {
 	var top int32 = 100
-	result, err := c.usageClient.ListByBillingPeriodComplete(context.Background(), billingPeriod, "", filter, "", "", &top)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return result
+	return c.usageClient.ListByBillingPeriodComplete(context.Background(), billingPeriod, "", filter, "", "", &top)
 }

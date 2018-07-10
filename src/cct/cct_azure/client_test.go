@@ -21,7 +21,11 @@ func TestGetPeriodIterator(t *testing.T) {
 
 	client := RestClient{mockBilling, mockConsumption}
 
-	actual := client.GetPeriodIterator("")
+	actual, err := client.GetPeriodIterator("")
+
+	if err != nil {
+		t.Errorf("Caught error: %s", err)
+	}
 
 	if actual.Value() != expected.Value() {
 		t.Errorf("Wanted and actual value differs!")
@@ -42,7 +46,11 @@ func TestGetUsageIterator(t *testing.T) {
 
 	client := RestClient{mockBilling, mockConsumption}
 
-	actual := client.GetUsageIterator(billingPeriod, filter)
+	actual, err := client.GetUsageIterator(billingPeriod, filter)
+
+	if err != nil {
+		t.Errorf("Caught error: %s", err)
+	}
 
 	if actual.Value().ID != expected.Value().ID {
 		t.Errorf("Wanted and actual value differs!")
