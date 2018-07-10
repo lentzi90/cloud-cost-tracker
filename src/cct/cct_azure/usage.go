@@ -1,4 +1,4 @@
-package main
+package cct_azure
 
 import (
 	"fmt"
@@ -6,18 +6,20 @@ import (
 	"strings"
 	"time"
 
+	"cct/db_client"
+
 	"github.com/Azure/azure-sdk-for-go/services/consumption/mgmt/2018-05-31/consumption"
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
 	"github.com/shopspring/decimal"
 )
 
 // UsageData TODO: move this to DBClient?
-type UsageData struct {
+/*type UsageData struct {
 	cost     decimal.Decimal
 	currency string
 	date     time.Time
 	labels   map[string]string
-}
+}*/
 
 // A UsageExplorer can be used to investigate usage cost
 type UsageExplorer struct {
@@ -30,10 +32,10 @@ func NewUsageExplorer(client Client) UsageExplorer {
 }
 
 // GetCloudCost fetches the cost for the specified date
-func (e *UsageExplorer) GetCloudCost(date time.Time) []UsageData {
+func (e *UsageExplorer) GetCloudCost(date time.Time) []db_client.UsageData {
 	usageIterator := e.getUsageByDate(date)
 	providers := make(map[string]decimal.Decimal)
-	var data []UsageData
+	var data []db_client.UsageData
 
 	for usageIterator.NotDone() {
 		usageDetails := usageIterator.Value()
@@ -50,7 +52,7 @@ func (e *UsageExplorer) GetCloudCost(date time.Time) []UsageData {
 
 		labels := make(map[string]string)
 		labels["provider"] = resourceProvider
-		data = append(data, UsageData{cost: pretaxCost, currency: currency, date: date, labels: labels})
+		data = append(data, db_client.UsageData{Cost: pretaxCost, Currency: currency, Date: date, Labels: labels})
 
 		usageIterator.Next()
 	}

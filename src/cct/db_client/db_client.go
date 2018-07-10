@@ -1,25 +1,27 @@
-package main
+package db_client
 
 import (
 	"log"
+	"time"
 
 	client "github.com/influxdata/influxdb/client/v2"
+	"github.com/shopspring/decimal"
 )
 
 // UsageData TODO
-/*type UsageData struct {
-	cost     decimal.Decimal
-	currency string
-	date     time.Time
-	labels   map[string]string
-}*/
+type UsageData struct {
+	Cost     decimal.Decimal
+	Currency string
+	Date     time.Time
+	Labels   map[string]string
+}
 
 // DBClientConfig Config struct with connection information of the influxDB
 type DBClientConfig struct {
 	DBName   string
-	username string
-	password string
-	address  string
+	Username string
+	Password string
+	Address  string
 }
 
 // DBClient Can be used to add UsageData to a DB
@@ -35,9 +37,9 @@ func NewDBClient(config DBClientConfig) DBClient {
 // AddUsageData Adds an array of UsageData to the DB
 func (e *DBClient) AddUsageData(usageData []UsageData) {
 	c, err := client.NewHTTPClient(client.HTTPConfig{
-		Addr:     e.config.address,
-		Username: e.config.username,
-		Password: e.config.password,
+		Addr:     e.config.Address,
+		Username: e.config.Username,
+		Password: e.config.Password,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -74,7 +76,7 @@ func (e *DBClient) CreateBatchPoints(data UsageData) (client.BatchPoints, error)
 	}
 
 	// Convert decimal to float and add as field
-	cost, _ := data.cost.Float64()
+	cost, _ := data.Cost.Float64()
 	fields := map[string]interface{}{
 		"cost": cost,
 		//"currency": data.currency, //If the currency should be a value
@@ -83,15 +85,15 @@ func (e *DBClient) CreateBatchPoints(data UsageData) (client.BatchPoints, error)
 	// Merge currency into label map
 	m := map[string]string{}
 
-	if data.labels != nil {
-		data.labels["currency"] = data.currency
-		m = data.labels
+	if data.Labels != nil {
+		data.Labels["currency"] = data.Currency
+		m = data.Labels
 	} else {
-		m["currency"] = data.currency
+		m["currency"] = data.Currency
 	}
 
 	// Create and add point
-	pt, err := client.NewPoint("cost", m, fields, data.date)
+	pt, err := client.NewPoint("cost", m, fields, data.Date)
 	if err != nil {
 		return nil, err
 	}

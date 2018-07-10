@@ -1,4 +1,4 @@
-package main
+package cct_azure
 
 //go:generate mockgen -destination=./mocks/client_mock.go -package=mocks -source=client.go
 

@@ -1,4 +1,4 @@
-package main
+package cct_azure
 
 import (
 	"testing"
