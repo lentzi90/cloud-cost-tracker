@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
+	"github.com/golang/mock/gomock"
+	"github.com/lentzi90/cct-azure/src/cct/cct_azure/mocks"
 )
 
 func setUp() UsageExplorer {
@@ -24,15 +26,29 @@ func TestSplitString(t *testing.T) {
 	}
 }
 
-func TestGetPeriod(t *testing.T) {
-	ue := setUp()
-	date := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
-	id := "id"
-	name := "name"
-	expected := billing.Period{ID: &id, Name: &name}
-	actual := ue.getPeriodByDate(date)
+func TestGetCloudCost(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
 
-	if actual != expected {
+	mockClient := mocks.NewMockClient(mockCtrl)
+	ue := NewUsageExplorer(mockClient)
+
+	// id := "id"
+	// name := "name"
+	// periodProps := billing.PeriodProperties{}
+	// period := billing.Period{ID: &id, Name: &name}
+	// periods := []billing.Period{period}
+	// plr := billing.PeriodsListResult{Value: &periods}
+	// i := 0
+	// page := billing.PeriodsListResultPage{}
+	periodIter := billing.PeriodsListResultIterator{}
+	mockClient.EXPECT().GetPeriodIterator(gomock.Any()).Return(periodIter)
+
+	date := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
+	// var expected []UsageData = nil
+	actual := ue.GetCloudCost(date)
+
+	if actual != nil {
 		t.Errorf("Expected and actual differ!")
 	}
 }

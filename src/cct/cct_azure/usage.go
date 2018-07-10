@@ -6,20 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"cct/db_client"
+	"github.com/lentzi90/cct-azure/src/cct/db_client"
 
 	"github.com/Azure/azure-sdk-for-go/services/consumption/mgmt/2018-05-31/consumption"
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
 	"github.com/shopspring/decimal"
 )
-
-// UsageData TODO: move this to DBClient?
-/*type UsageData struct {
-	cost     decimal.Decimal
-	currency string
-	date     time.Time
-	labels   map[string]string
-}*/
 
 // A UsageExplorer can be used to investigate usage cost
 type UsageExplorer struct {
@@ -72,11 +64,15 @@ func (e *UsageExplorer) getPeriodByDate(date time.Time) billing.Period {
 }
 
 func (e *UsageExplorer) getUsageByDate(date time.Time) consumption.UsageDetailsListResultIterator {
-	billingPeriod := *e.getPeriodByDate(date).Name
+	billingPeriod := e.getPeriodByDate(date)
+	if billingPeriod.Name == nil {
+		log.Fatal("No billing available")
+	}
+	billingPeriodName := *billingPeriod.Name
 	filter := fmt.Sprintf("properties/usageStart eq '%s'", date.Format("2006-01-02"))
-	log.Println("Trying to get usage for billing period", billingPeriod)
+	log.Println("Trying to get usage for billing period", billingPeriodName)
 
-	result := e.client.GetUsageIterator(billingPeriod, filter)
+	result := e.client.GetUsageIterator(billingPeriodName, filter)
 	log.Println("Success!")
 
 	return result

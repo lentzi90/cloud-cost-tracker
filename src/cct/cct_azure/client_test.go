@@ -6,7 +6,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/consumption/mgmt/2018-05-31/consumption"
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
 	"github.com/golang/mock/gomock"
-	"github.com/lentzi90/cct-azure/mocks"
+	"github.com/lentzi90/cct-azure/src/cct/cct_azure/mocks"
 )
 
 func TestGetPeriodIterator(t *testing.T) {
