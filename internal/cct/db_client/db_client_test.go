@@ -34,7 +34,13 @@ var (
 			"l4": "test4",
 		},
 	}
-	usageDataArray = []UsageData{usageData1, usageData2}
+	usageData3 = UsageData{
+		Cost:     333,
+		Currency: "USD",
+		Date:     time.Date(2003, time.March, 3, 3, 3, 3, 3, time.UTC),
+		Labels:   nil,
+	}
+	usageDataArray = []UsageData{usageData1, usageData2, usageData3}
 )
 
 func TestConfig(t *testing.T) {
@@ -56,12 +62,14 @@ func TestAddUsageData(t *testing.T) {
 	// Create mocked points and BatchPoints
 	testPoint1 := &client.Point{}
 	testPoint2 := &client.Point{}
+	testPoint3 := &client.Point{}
 	mockedBP := NewMockbp(mockCtrl)
 	mockedBP.EXPECT().AddPoint(testPoint1).Times(1)
 	mockedBP.EXPECT().AddPoint(testPoint2).Times(1)
+	mockedBP.EXPECT().AddPoint(testPoint3).Times(1)
 
 	// Mocked Client that NewHTTPClient will return
-	mockConnection := createWorkingConClient(mockCtrl, 2, 2)
+	mockConnection := createWorkingConClient(mockCtrl, 2, 3)
 
 	// Mocked influxInterface that will return the mocked Client
 	mockinfluxInterface := createWorkinginfluxInterface(mockCtrl, mockConnection)
@@ -71,7 +79,7 @@ func TestAddUsageData(t *testing.T) {
 		Database:  dbConfig.DBName,
 		Precision: "h",
 	}).
-		Times(2).
+		Times(3).
 		DoAndReturn(func(conf client.BatchPointsConfig) (client.BatchPoints, error) {
 			return mockedBP, nil
 		})
@@ -84,8 +92,10 @@ func TestAddUsageData(t *testing.T) {
 	expectedLabels2 := usageData2.Labels
 	expectedLabels2["currency"] = usageData2.Currency
 
+	expectedFields3 := map[string]interface{}{"cost": usageData3.Cost}
+	expectedLabels3 := map[string]string{"currency": usageData3.Currency}
+
 	// Mocked NewPoint that will return the mocked Point
-	//mockPoint := NewMockpoint(mockCtrl)
 	mockinfluxInterface.EXPECT().NewPoint("cost", expectedLabels1, expectedFields1, usageData1.Date).
 		Times(1).
 		DoAndReturn(func(name string, tags map[string]string, fields map[string]interface{}, t time.Time) (*client.Point, error) {
@@ -96,6 +106,12 @@ func TestAddUsageData(t *testing.T) {
 		Times(1).
 		DoAndReturn(func(name string, tags map[string]string, fields map[string]interface{}, t time.Time) (*client.Point, error) {
 			return testPoint2, nil
+		})
+
+	mockinfluxInterface.EXPECT().NewPoint("cost", expectedLabels3, expectedFields3, usageData3.Date).
+		Times(1).
+		DoAndReturn(func(name string, tags map[string]string, fields map[string]interface{}, t time.Time) (*client.Point, error) {
+			return testPoint3, nil
 		})
 
 	dbClient := NewDBClient(dbConfig)

@@ -9,7 +9,7 @@ import (
 	client "github.com/influxdata/influxdb/client/v2"
 )
 
-// UsageData TODO
+// UsageData Struct that the submodules should return
 type UsageData struct {
 	Cost     float64
 	Currency string
@@ -25,7 +25,7 @@ type DBClientConfig struct {
 	Address  string
 }
 
-// Connection TODO
+// conClient Interface thats the same as client.Client to make testing easier
 type conClient interface {
 	Write(bp client.BatchPoints) error
 	Close() error
@@ -33,7 +33,7 @@ type conClient interface {
 	Query(q client.Query) (*client.Response, error)
 }
 
-// BP TODO
+// bp Interface thats the same as client.BatchPoints to make testing easier
 type bp interface {
 	AddPoint(p *client.Point)
 	AddPoints(ps []*client.Point)
@@ -48,34 +48,35 @@ type bp interface {
 	SetRetentionPolicy(s string)
 }
 
-// HTTPClient TODO
+// HTTPClient Interface with the functions that this package uses from client to make testing easier
 type influxInterface interface {
 	NewHTTPClient(conf client.HTTPConfig) (client.Client, error)
 	NewBatchPoints(conf client.BatchPointsConfig) (client.BatchPoints, error)
 	NewPoint(name string, tags map[string]string, fields map[string]interface{}, t ...time.Time) (*client.Point, error)
 }
 
-// DBClient Can be used to add UsageData to a DB
-type DBClient struct {
-	config DBClientConfig
-	influxInterface
-}
-
+// influxClient Struct that will include the functions from influxInterface
 type influxClient struct{}
 
-// NewHTTPClient TODO
+// NewHTTPClient Proxy function to client
 func (e influxClient) NewHTTPClient(conf client.HTTPConfig) (client.Client, error) {
 	return client.NewHTTPClient(conf)
 }
 
-// NewBatchPoints TODO
+// NewBatchPoints Proxy function to client
 func (e influxClient) NewBatchPoints(conf client.BatchPointsConfig) (client.BatchPoints, error) {
 	return client.NewBatchPoints(conf)
 }
 
-// NewPoint TODO
+// NewPoint Proxy function to client
 func (e influxClient) NewPoint(name string, tags map[string]string, fields map[string]interface{}, t ...time.Time) (*client.Point, error) {
 	return client.NewPoint(name, tags, fields, t...)
+}
+
+// DBClient Can be used to add UsageData to a DB
+type DBClient struct {
+	config DBClientConfig
+	influxInterface
 }
 
 // NewDBClient initializes a DBClient
@@ -86,7 +87,7 @@ func NewDBClient(config DBClientConfig) DBClient {
 	}
 }
 
-// GetConfig TODO
+// GetConfig Returns the config
 func (e *DBClient) GetConfig() DBClientConfig {
 	return e.config
 }
@@ -142,7 +143,6 @@ func (e *DBClient) createBatchPoints(data UsageData) (bp, error) {
 	cost := data.Cost
 	fields := map[string]interface{}{
 		"cost": cost,
-		//"currency": data.currency, //If the currency should be a value
 	}
 
 	// Merge currency into label map
