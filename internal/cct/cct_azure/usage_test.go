@@ -2,6 +2,8 @@ package cct_azure
 
 import (
 	"errors"
+	"io/ioutil"
+	"log"
 	"testing"
 	"time"
 
@@ -9,12 +11,18 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/golang/mock/gomock"
+	"github.com/lentzi90/cct-azure/internal/cct/db_client"
 	"github.com/shopspring/decimal"
 )
 
+func init() {
+	log.SetFlags(0)
+	log.SetOutput(ioutil.Discard)
+}
+
 func TestSplitString(t *testing.T) {
-	instanceID := "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/Microsoft.ContainerRegistry/registries/elastisys"
 	expected := "Microsoft.ContainerRegistry/registries"
+	instanceID := "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/" + expected + "/elastisys"
 	actual := getProvider(instanceID)
 
 	if actual != expected {
@@ -33,8 +41,7 @@ func TestGetCloudCost(t *testing.T) {
 
 	t.Run("Fail to get cloud cost", func(t *testing.T) {
 		err0 := errors.New("error")
-		periodIter := mockPeriodsIter
-		mockClient.EXPECT().getPeriodIterator(gomock.Any()).Return(periodIter, err0)
+		mockClient.EXPECT().getPeriodIterator(gomock.Any()).Return(mockPeriodsIter, err0)
 		date := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
 
 		_, err := ue.GetCloudCost(date)
@@ -46,9 +53,10 @@ func TestGetCloudCost(t *testing.T) {
 
 	t.Run("Get cloud cost", func(t *testing.T) {
 		// filter := "filter"
+		provider := "Microsoft.ContainerRegistry/registries"
 		id := "id"
 		name := "name"
-		instanceID := "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/Microsoft.ContainerRegistry/registries/elastisys"
+		instanceID := "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/" + provider + "/elastisys"
 		pretaxCost := decimal.NewFromFloat(10.50)
 		currency := "SEK"
 		usageDate := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
@@ -70,17 +78,41 @@ func TestGetCloudCost(t *testing.T) {
 		mockClient.EXPECT().getPeriodIterator(gomock.Any()).Return(periodIter, nil)
 		mockClient.EXPECT().getUsageIterator(name, gomock.Any()).Return(mockUsageIter, nil)
 
-		// labels := make(map[string]string)
-		// data := db_client.UsageData{Cost: pretaxCost, Currency: currency, Date: usageDate, Labels: labels}
-		// expected := []db_client.UsageData{data}
+		labels := map[string]string{"provider": provider}
+		cost, _ := pretaxCost.Float64()
+		data := db_client.UsageData{Cost: cost, Currency: currency, Date: usageDate, Labels: labels}
+		expected := []db_client.UsageData{data}
 		actual, err := ue.GetCloudCost(usageDate)
 
 		if err != nil {
 			t.Errorf("Caught error: %s", err)
 		}
 
-		if actual == nil {
-			t.Errorf("Expected and actual differ!")
-		}
+		checkCloudCost(t, expected, actual)
 	})
+}
+
+func checkCloudCost(t *testing.T, expected, actual []db_client.UsageData) {
+	if len(actual) != len(expected) {
+		t.Errorf("UsageData slince lengths differ!")
+	}
+	for i := range expected {
+		if (actual[i].Cost != expected[i].Cost) ||
+			(actual[i].Currency != expected[i].Currency) ||
+			(actual[i].Date != expected[i].Date) {
+			t.Errorf("UsageData differ. Expected: %f %s %s, Actual: %f %s %s",
+				expected[i].Cost, expected[i].Currency, expected[i].Date.Format("2006-01-02"),
+				actual[i].Cost, actual[i].Currency, actual[i].Date.Format("2006-01-02"))
+		}
+
+		if len(expected[i].Labels) != len(actual[i].Labels) {
+			t.Errorf("Expected %d labels, actual %d", len(expected[i].Labels), len(actual[i].Labels))
+		}
+
+		for k, v := range expected[i].Labels {
+			if v != actual[i].Labels[k] {
+				t.Errorf("Expected label: %s=%s, actual: %s=%s", k, v, k, actual[i].Labels[k])
+			}
+		}
+	}
 }

@@ -2,12 +2,19 @@ package cct_azure
 
 import (
 	"errors"
+	"io/ioutil"
+	"log"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/services/consumption/mgmt/2018-05-31/consumption"
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
 	"github.com/golang/mock/gomock"
 )
+
+func init() {
+	log.SetFlags(0)
+	log.SetOutput(ioutil.Discard)
+}
 
 func TestGetPeriodIterator(t *testing.T) {
 	mockCtrl := gomock.NewController(t)

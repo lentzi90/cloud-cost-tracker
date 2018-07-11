@@ -60,7 +60,6 @@ func (e *UsageExplorer) GetCloudCost(date time.Time) ([]db_client.UsageData, err
 		usageIter.Next()
 	}
 
-	fmt.Println(data)
 	return data, nil
 }
 
