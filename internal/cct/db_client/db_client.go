@@ -93,7 +93,7 @@ func (e *DBClient) GetConfig() DBClientConfig {
 }
 
 // AddUsageData Adds an array of UsageData to the DB
-func (e *DBClient) AddUsageData(usageData []UsageData) bool {
+func (e *DBClient) AddUsageData(usageData []UsageData) error {
 	var c conClient
 	c, err := e.influxInterface.NewHTTPClient(client.HTTPConfig{
 		Addr:     e.config.Address,
@@ -101,8 +101,7 @@ func (e *DBClient) AddUsageData(usageData []UsageData) bool {
 		Password: e.config.Password,
 	})
 	if err != nil {
-		log.Println(err)
-		return false
+		return err
 	}
 
 	defer c.Close()
@@ -110,8 +109,7 @@ func (e *DBClient) AddUsageData(usageData []UsageData) bool {
 	for _, data := range usageData {
 		bp, err := e.createBatchPoints(data)
 		if err != nil {
-			log.Println(err)
-			return false
+			return err
 		}
 
 		if err := c.Write(bp); err != nil {
@@ -123,7 +121,7 @@ func (e *DBClient) AddUsageData(usageData []UsageData) bool {
 		log.Fatal(err)
 	}
 
-	return true
+	return nil
 }
 
 // createBatchPoints Creates a batch of points from one UsageData that can be added to the DB

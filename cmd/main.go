@@ -10,17 +10,18 @@ import (
 	"github.com/lentzi90/cct-azure/internal/cct/db_client"
 )
 
-var subscriptionID = flag.String("subscription-id", "", "The ID of the subscription.")
+var (
+	subscriptionID = flag.String("subscription-id", "", "The ID of the subscription.")
+	dbConfig       = db_client.DBClientConfig{
+		DBName:   "cloudCostTracker",
+		Username: "cctUser",
+		Password: "cctPassword",
+		Address:  "http://localhost:8086",
+	}
+)
 
 func main() {
 	fmt.Println("Welcome to Cloud Cost Tracker V1.0.5")
-
-	dbConfig := db_client.DBClientConfig{
-		DBName:   "prometheus",
-		Username: "prom",
-		Password: "prom",
-		Address:  "http://localhost:8086",
-	}
 
 	flag.Parse()
 	if *subscriptionID == "" {
@@ -38,7 +39,10 @@ func main() {
 		fmt.Println("Getting for period", fetchTime)
 		test, err := usageExplorer.GetCloudCost(fetchTime)
 		if err == nil {
-			db.AddUsageData(test)
+			if err = db.AddUsageData(test); err != nil {
+				log.Fatalf("DB Error: %v", err)
+			}
+
 		} else {
 			log.Println("Got error, skipping usage data:", err)
 		}

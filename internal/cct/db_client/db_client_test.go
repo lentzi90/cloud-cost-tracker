@@ -118,10 +118,9 @@ func TestAddUsageData(t *testing.T) {
 	dbClient.influxInterface = mockinfluxInterface
 
 	actual := dbClient.AddUsageData(usageDataArray)
-	expected := true
 
-	if actual != expected {
-		t.Errorf("Wanted: AddUsageData return %v but got %v", expected, actual)
+	if actual != nil {
+		t.Errorf("Wanted: AddUsageData to return nil but got %v", actual)
 	}
 }
 
@@ -138,17 +137,17 @@ func TestHttpClientFail(t *testing.T) {
 	}).
 		Times(1).
 		DoAndReturn(func(conf client.HTTPConfig) (client.Client, error) {
-			return nil, errors.New("testError")
+			return nil, errors.New("testHTTPClientError")
 		})
 
 	dbClient := NewDBClient(dbConfig)
 	dbClient.influxInterface = mockinfluxInterface
 
 	actual := dbClient.AddUsageData(usageDataArray)
-	expected := false
+	expected := "testHTTPClientError"
 
-	if actual != expected {
-		t.Errorf("Wanted: AddUsageData return %v but got %v", expected, actual)
+	if actual.Error() != expected {
+		t.Errorf("Wanted: AddUsageData to return %v but got %v", expected, actual)
 	}
 }
 
@@ -170,17 +169,17 @@ func TestBatchPointFail(t *testing.T) {
 	}).
 		Times(1).
 		DoAndReturn(func(conf client.BatchPointsConfig) (client.BatchPoints, error) {
-			return nil, errors.New("testError")
+			return nil, errors.New("testBatchPointsError")
 		})
 
 	dbClient := NewDBClient(dbConfig)
 	dbClient.influxInterface = mockinfluxInterface
 
 	actual := dbClient.AddUsageData(usageDataArray)
-	expected := false
+	expected := "testBatchPointsError"
 
-	if actual != expected {
-		t.Errorf("Wanted: AddUsageData return %v but got %v", expected, actual)
+	if actual.Error() != expected {
+		t.Errorf("Wanted: AddUsageData to return %v but got %v", expected, actual)
 	}
 }
 
@@ -211,17 +210,17 @@ func TestPointFail(t *testing.T) {
 	mockinfluxInterface.EXPECT().NewPoint("cost", gomock.Any(), gomock.Any(), gomock.Any()).
 		Times(1).
 		DoAndReturn(func(name string, tags map[string]string, fields map[string]interface{}, t time.Time) (*client.Point, error) {
-			return nil, errors.New("testError")
+			return nil, errors.New("testPointError")
 		})
 
 	dbClient := NewDBClient(dbConfig)
 	dbClient.influxInterface = mockinfluxInterface
 
 	actual := dbClient.AddUsageData(usageDataArray)
-	expected := false
+	expected := "testPointError"
 
-	if actual != expected {
-		t.Errorf("Wanted: AddUsageData return %v but got %v", expected, actual)
+	if actual.Error() != expected {
+		t.Errorf("Wanted: AddUsageData to return %v but got %v", expected, actual)
 	}
 }
 
