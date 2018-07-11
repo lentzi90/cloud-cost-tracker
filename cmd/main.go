@@ -12,12 +12,10 @@ import (
 
 var (
 	subscriptionID = flag.String("subscription-id", "", "The ID of the subscription.")
-	dbConfig       = db_client.DBClientConfig{
-		DBName:   "cloudCostTracker",
-		Username: "cctUser",
-		Password: "cctPassword",
-		Address:  "http://localhost:8086",
-	}
+	dbName         = flag.String("db-name", "cloudCostTracker", "The name of the database to use.")
+	dbUsername     = flag.String("db-username", "cctUser", "The username to the database.")
+	dbPassword     = flag.String("db-password", "cctPassword", "The password to the database.")
+	dbAddress      = flag.String("db-address", "http://localhost:8086", "The address to the database.")
 )
 
 func main() {
@@ -26,6 +24,13 @@ func main() {
 	flag.Parse()
 	if *subscriptionID == "" {
 		log.Fatal("You must provide a subscription id by using the --subscription-id flag.")
+	}
+
+	dbConfig := db_client.DBClientConfig{
+		DBName:   *dbName,
+		Username: *dbUsername,
+		Password: *dbPassword,
+		Address:  *dbAddress,
 	}
 
 	log.Println("Initializing client...")
@@ -40,7 +45,7 @@ func main() {
 		test, err := usageExplorer.GetCloudCost(fetchTime)
 		if err == nil {
 			if err = db.AddUsageData(test); err != nil {
-				log.Fatalf("DB Error: %v", err)
+				log.Fatalf("DB Error: %v", err.Error())
 			}
 
 		} else {

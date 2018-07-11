@@ -3,7 +3,6 @@ package db_client
 //go:generate mockgen -destination=./db_client_mock.go -package=db_client -source=db_client.go
 
 import (
-	"log"
 	"time"
 
 	client "github.com/influxdata/influxdb/client/v2"
@@ -113,12 +112,12 @@ func (e *DBClient) AddUsageData(usageData []UsageData) error {
 		}
 
 		if err := c.Write(bp); err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 
 	if err := c.Close(); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	return nil
@@ -138,23 +137,20 @@ func (e *DBClient) createBatchPoints(data UsageData) (bp, error) {
 	}
 
 	// Convert decimal to float and add as field
-	cost := data.Cost
-	fields := map[string]interface{}{
-		"cost": cost,
-	}
+	cost := map[string]interface{}{"cost": data.Cost}
 
 	// Merge currency into label map
-	m := map[string]string{}
+	labels := map[string]string{}
 
 	if data.Labels != nil {
 		data.Labels["currency"] = data.Currency
-		m = data.Labels
+		labels = data.Labels
 	} else {
-		m["currency"] = data.Currency
+		labels["currency"] = data.Currency
 	}
 
 	// Create and add point
-	pt, err := e.influxInterface.NewPoint("cost", m, fields, data.Date)
+	pt, err := e.influxInterface.NewPoint("cost", labels, cost, data.Date)
 	if err != nil {
 		return nil, err
 	}

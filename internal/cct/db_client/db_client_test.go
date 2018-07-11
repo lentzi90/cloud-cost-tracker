@@ -224,6 +224,53 @@ func TestPointFail(t *testing.T) {
 	}
 }
 
+// Tests that AddUsageData fails if Write fails
+func TestWriteFail(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	// Create mocked points and BatchPoints
+	testPoint := &client.Point{}
+	mockedBP := NewMockbp(mockCtrl)
+	mockedBP.EXPECT().AddPoint(gomock.Any()).Times(1)
+
+	// Mocked Client that NewHTTPClient will return
+	mockConnection := NewMockconClient(mockCtrl)
+	mockConnection.EXPECT().Close().Times(1)
+	mockConnection.EXPECT().Write(mockedBP).Times(1).DoAndReturn(func(client.BatchPoints) error {
+		return errors.New("testWriteError")
+	})
+
+	// Mocked influxInterface that will return the mocked Client
+	mockinfluxInterface := createWorkinginfluxInterface(mockCtrl, mockConnection)
+
+	mockinfluxInterface.EXPECT().NewBatchPoints(client.BatchPointsConfig{
+		Database:  dbConfig.DBName,
+		Precision: "h",
+	}).
+		Times(1).
+		DoAndReturn(func(conf client.BatchPointsConfig) (client.BatchPoints, error) {
+			return mockedBP, nil
+		})
+
+	// Mocked NewPoint that will return the mocked Point
+	mockinfluxInterface.EXPECT().NewPoint("cost", gomock.Any(), gomock.Any(), gomock.Any()).
+		Times(1).
+		DoAndReturn(func(name string, tags map[string]string, fields map[string]interface{}, t time.Time) (*client.Point, error) {
+			return testPoint, nil
+		})
+
+	dbClient := NewDBClient(dbConfig)
+	dbClient.influxInterface = mockinfluxInterface
+
+	actual := dbClient.AddUsageData(usageDataArray)
+	expected := "testWriteError"
+
+	if actual.Error() != expected {
+		t.Errorf("Wanted: AddUsageData to return %v but got %v", expected, actual)
+	}
+}
+
 // Creates a working influxInterface mock for testing
 func createWorkinginfluxInterface(mockCtrl *gomock.Controller, mockConnection conClient) *MockinfluxInterface {
 	mockinfluxInterface := NewMockinfluxInterface(mockCtrl)
