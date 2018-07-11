@@ -11,7 +11,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/golang/mock/gomock"
-	"github.com/lentzi90/cct-azure/internal/cct/db_client"
+	"github.com/lentzi90/cloud-cost-tracker/internal/cct/db_client"
 	"github.com/shopspring/decimal"
 )
 

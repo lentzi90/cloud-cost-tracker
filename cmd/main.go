@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/lentzi90/cct-azure/internal/cct/cct_azure"
-	"github.com/lentzi90/cct-azure/internal/cct/db_client"
+	"github.com/lentzi90/cloud-cost-tracker/internal/cct/cct_azure"
+	"github.com/lentzi90/cloud-cost-tracker/internal/cct/db_client"
 )
 
 var subscriptionID = flag.String("subscription-id", "", "The ID of the subscription.")

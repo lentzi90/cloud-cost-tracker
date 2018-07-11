@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lentzi90/cct-azure/internal/cct/db_client"
+	"github.com/lentzi90/cloud-cost-tracker/internal/cct/db_client"
 
 	"github.com/Azure/azure-sdk-for-go/services/consumption/mgmt/2018-05-31/consumption"
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
