@@ -1,10 +1,5 @@
 #!/bin/bash
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-echo "Setting GOPATH to \"$DIR\""
-export GOPATH=$DIR
-export PATH=$GOPATH/bin:$PATH
-
 echo "Downloading Azure SDK..."
 go get -u github.com/Azure/azure-sdk-for-go/...
 echo "Downloading InfluxDB Client..."
