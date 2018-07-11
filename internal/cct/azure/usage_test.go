@@ -20,7 +20,7 @@ func init() {
 	log.SetOutput(ioutil.Discard)
 }
 
-func TestSplitString(t *testing.T) {
+func TestParseProvider(t *testing.T) {
 	tests := map[string]string{
 		"Microsoft.ContainerRegistry/registries": "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/Microsoft.ContainerRegistry/registries/elastisys",
 		"Microsoft.Compute/disks":                "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/Microsoft.Compute/disks/elastisys",
@@ -44,7 +44,19 @@ func TestGetCloudCost(t *testing.T) {
 	mockClient := NewMockClient(mockCtrl)
 	ue := NewUsageExplorer(mockClient)
 
-	t.Run("Fail to get cloud cost", func(t *testing.T) {
+	// Test data
+	id := "id"
+	name := "name"
+	period := billing.Period{ID: &id, Name: &name}
+	provider := "Microsoft.ContainerRegistry/registries"
+	instanceID := "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/" + provider + "/elastisys"
+	cost := 10.50
+	currency := "SEK"
+	usageDate := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
+	usage := fakeUsageDetail(usageDate, cost, currency, instanceID)
+	usageSlice := []consumption.UsageDetail{usage}
+
+	t.Run("Fail to get period iterator", func(t *testing.T) {
 		err0 := errors.New("error")
 		mockClient.EXPECT().getPeriodIterator(gomock.Any()).Return(mockPeriodsIter, err0)
 		date := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
@@ -56,35 +68,25 @@ func TestGetCloudCost(t *testing.T) {
 		}
 	})
 
-	// Test data
-	provider := "Microsoft.ContainerRegistry/registries"
-	id := "id"
-	name := "name"
-	instanceID := "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/" + provider + "/elastisys"
-	pretaxCost := decimal.NewFromFloat(10.50)
-	currency := "SEK"
-	usageDate := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
-	usageStart := date.Time{usageDate}
-	usageEnd := date.Time{time.Date(2018, time.July, 4, 00, 0, 0, 0, time.UTC)}
-	usageProps := consumption.UsageDetailProperties{InstanceID: &instanceID, PretaxCost: &pretaxCost, Currency: &currency, UsageStart: &usageStart, UsageEnd: &usageEnd}
-	period := billing.Period{ID: &id, Name: &name}
-	usage := consumption.UsageDetail{ID: &id, Name: &name, UsageDetailProperties: &usageProps}
+	t.Run("Fail to get usage iterator", func(t *testing.T) {
+		mockPeriodsIter.EXPECT().Value().Return(period)
+
+		mockClient.EXPECT().getPeriodIterator(gomock.Any()).Return(mockPeriodsIter, nil)
+		mockClient.EXPECT().getUsageIterator(name, gomock.Any()).Return(mockUsageIter, errors.New("error"))
+
+		_, err := ue.GetCloudCost(usageDate)
+
+		if err == nil {
+			t.Errorf("Expected error but got none!")
+		}
+	})
 
 	t.Run("Get cloud cost", func(t *testing.T) {
 		mockPeriodsIter.EXPECT().Value().Return(period)
+		setupUsageIterator(*mockUsageIter, usageSlice)
+		setupClient(*mockClient, mockPeriodsIter, mockUsageIter)
 
-		// We have a single item in the iterator so return true the first time, then false
-		mockUsageIter.EXPECT().NotDone().Return(true)
-		mockUsageIter.EXPECT().NotDone().Return(false)
-		mockUsageIter.EXPECT().Value().Return(usage)
-		mockUsageIter.EXPECT().Next()
-
-		periodIter := mockPeriodsIter
-		mockClient.EXPECT().getPeriodIterator(gomock.Any()).Return(periodIter, nil)
-		mockClient.EXPECT().getUsageIterator(name, gomock.Any()).Return(mockUsageIter, nil)
-
-		labels := map[string]string{"provider": provider}
-		cost, _ := pretaxCost.Float64()
+		labels := map[string]string{"cloud": "azure", "service": provider, "currency": "SEK"}
 		data := dbclient.UsageData{Cost: cost, Currency: currency, Date: usageDate, Labels: labels}
 		expected := []dbclient.UsageData{data}
 		actual, err := ue.GetCloudCost(usageDate)
@@ -98,18 +100,12 @@ func TestGetCloudCost(t *testing.T) {
 
 	t.Run("Get partial cloud cost", func(t *testing.T) {
 		// Properties are missing
-		usage := consumption.UsageDetail{ID: &id, Name: &name, UsageDetailProperties: nil}
+		partial := consumption.UsageDetail{ID: &id, Name: &name, UsageDetailProperties: nil}
+		data := []consumption.UsageDetail{partial}
 
 		mockPeriodsIter.EXPECT().Value().Return(period)
-
-		// We have a single item in the iterator so return true the first time, then false
-		mockUsageIter.EXPECT().NotDone().Return(true)
-		mockUsageIter.EXPECT().NotDone().Return(false)
-		mockUsageIter.EXPECT().Value().Return(usage)
-
-		periodIter := mockPeriodsIter
-		mockClient.EXPECT().getPeriodIterator(gomock.Any()).Return(periodIter, nil)
-		mockClient.EXPECT().getUsageIterator(name, gomock.Any()).Return(mockUsageIter, nil)
+		setupUsageIterator(*mockUsageIter, data)
+		setupClient(*mockClient, mockPeriodsIter, mockUsageIter)
 
 		// We expect no data because of the missing properties
 		expected := []dbclient.UsageData{}
@@ -122,19 +118,51 @@ func TestGetCloudCost(t *testing.T) {
 		checkCloudCost(t, expected, actual)
 	})
 
-	t.Run("Fail to get usage iterator", func(t *testing.T) {
+	t.Run("Get multiple cloud cost", func(t *testing.T) {
+		usageSlice := []consumption.UsageDetail{usage, usage, usage}
+
 		mockPeriodsIter.EXPECT().Value().Return(period)
+		setupUsageIterator(*mockUsageIter, usageSlice)
+		setupClient(*mockClient, mockPeriodsIter, mockUsageIter)
 
-		periodIter := mockPeriodsIter
-		mockClient.EXPECT().getPeriodIterator(gomock.Any()).Return(periodIter, nil)
-		mockClient.EXPECT().getUsageIterator(name, gomock.Any()).Return(mockUsageIter, errors.New("error"))
+		labels := map[string]string{"cloud": "azure", "service": provider, "currency": "SEK"}
+		data := dbclient.UsageData{Cost: cost, Currency: currency, Date: usageDate, Labels: labels}
+		expected := []dbclient.UsageData{data, data, data}
+		actual, err := ue.GetCloudCost(usageDate)
 
-		_, err := ue.GetCloudCost(usageDate)
-
-		if err == nil {
-			t.Errorf("Expected error but got none!")
+		if err != nil {
+			t.Errorf("Caught error: %s", err)
 		}
+
+		checkCloudCost(t, expected, actual)
 	})
+}
+
+func fakeUsageDetail(usageDate time.Time, cost float64, currency string, instanceID string) consumption.UsageDetail {
+	id := "id"
+	name := "name"
+	pretaxCost := decimal.NewFromFloat(10.50)
+	usageStart := date.Time{usageDate}
+	usageEnd := date.Time{usageDate.AddDate(0, 0, 1)}
+	usageProps := consumption.UsageDetailProperties{InstanceID: &instanceID, PretaxCost: &pretaxCost, Currency: &currency, UsageStart: &usageStart, UsageEnd: &usageEnd}
+	return consumption.UsageDetail{ID: &id, Name: &name, UsageDetailProperties: &usageProps}
+}
+
+// Add logic to let the mocker iterator iterate over the data
+func setupUsageIterator(mock MockusageIterator, data []consumption.UsageDetail) {
+	mock.EXPECT().Next().AnyTimes()
+	// Allow mock to iterate over all the data
+	for _, usage := range data {
+		mock.EXPECT().NotDone().Return(true)
+		mock.EXPECT().Value().Return(usage)
+	}
+
+	mock.EXPECT().NotDone().Return(false)
+}
+
+func setupClient(mock MockClient, periodsIter periodsIterator, usageIter usageIterator) {
+	mock.EXPECT().getPeriodIterator(gomock.Any()).Return(periodsIter, nil)
+	mock.EXPECT().getUsageIterator(gomock.Any(), gomock.Any()).Return(usageIter, nil)
 }
 
 func checkCloudCost(t *testing.T, expected, actual []dbclient.UsageData) {
@@ -156,7 +184,7 @@ func checkCloudCost(t *testing.T, expected, actual []dbclient.UsageData) {
 
 		for k, v := range expected[i].Labels {
 			if v != actual[i].Labels[k] {
-				t.Errorf("Expected label: %s=%s, actual: %s=%s", k, v, k, actual[i].Labels[k])
+				t.Errorf("Expected: %s=%s, actual: %s=%s", k, v, k, actual[i].Labels[k])
 			}
 		}
 	}

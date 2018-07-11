@@ -34,6 +34,7 @@ func (e *UsageExplorer) GetCloudCost(date time.Time) ([]dbclient.UsageData, erro
 
 	for usageIter.NotDone() {
 		usageDetails := usageIter.Value()
+		usageIter.Next()
 		// Check that these fields actually exist!
 		if (usageDetails.UsageDetailProperties == nil) ||
 			(usageDetails.UsageStart == nil) ||
@@ -53,11 +54,11 @@ func (e *UsageExplorer) GetCloudCost(date time.Time) ([]dbclient.UsageData, erro
 		log.Printf("%s %s, %s, %s\n", pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), resourceProvider)
 
 		labels := make(map[string]string)
-		labels["provider"] = resourceProvider
+		labels["service"] = resourceProvider
+		labels["cloud"] = "azure"
+		labels["currency"] = currency
 		cost, _ := pretaxCost.Float64()
 		data = append(data, dbclient.UsageData{Cost: cost, Currency: currency, Date: date, Labels: labels})
-
-		usageIter.Next()
 	}
 
 	return data, nil
