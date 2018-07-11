@@ -6,12 +6,25 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/lentzi90/cloud-cost-tracker/internal/cct/dbclient"
 	"io"
 	"log"
 	"math"
 	"strconv"
 	"time"
 )
+
+// Client ...
+type Client struct {
+	bucket string
+	key    string
+}
+
+// NewClient ...
+func NewClient(bucket string, key string) Client {
+	client := Client{bucket: bucket, key: key}
+	return client
+}
 
 func newS3Service() *s3.S3 {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
@@ -129,6 +142,35 @@ func GetAccumulatedCost(bucket string, key string, timestamp time.Time) []interf
 	for key, cost := range m {
 		res = append(res, key)
 		res = append(res, cost)
+	}
+
+	return res
+}
+
+func calculateRatio() {
+}
+
+// GetCloudCost ...
+func (client *Client) GetCloudCost(timestamp time.Time) []dbclient.UsageData {
+	// S3 Select query
+	// StartDate StopDate Service Currency BlendedCost
+	query := "SELECT s._11, s._12, s._13, s._20, s._24 FROM S3Object s"
+
+	// Get table from bucket with key using query
+	tbl := getTable(client.bucket, client.key, query)
+
+	// Transform result into internal format []UsageData
+	res := make([]dbclient.UsageData, 0)
+	for _, val := range tbl {
+		_ = val
+		labels := map[string]string{}
+		labels["Service"] = val[2]
+		labels["Currency"] = val[3]
+		row := dbclient.UsageData{
+			Cost:   0.0,
+			Date:   timestamp,
+			Labels: labels}
+		res = append(res, row)
 	}
 
 	return res
