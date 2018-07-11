@@ -21,13 +21,18 @@ func init() {
 }
 
 func TestSplitString(t *testing.T) {
-	expected := "Microsoft.ContainerRegistry/registries"
-	instanceID := "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/" + expected + "/elastisys"
-	actual := getProvider(instanceID)
-
-	if actual != expected {
-		t.Errorf("Wanted: %s got: %s", expected, actual)
+	tests := map[string]string{
+		"Microsoft.ContainerRegistry/registries": "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/Microsoft.ContainerRegistry/registries/elastisys",
+		"Microsoft.Compute/disks":                "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/Microsoft.Compute/disks/elastisys",
 	}
+
+	for expected, id := range tests {
+		actual := getProvider(id)
+		if actual != expected {
+			t.Errorf("Wanted: %s got: %s", expected, actual)
+		}
+	}
+
 }
 
 func TestGetCloudCost(t *testing.T) {
@@ -51,21 +56,21 @@ func TestGetCloudCost(t *testing.T) {
 		}
 	})
 
-	t.Run("Get cloud cost", func(t *testing.T) {
-		// filter := "filter"
-		provider := "Microsoft.ContainerRegistry/registries"
-		id := "id"
-		name := "name"
-		instanceID := "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/" + provider + "/elastisys"
-		pretaxCost := decimal.NewFromFloat(10.50)
-		currency := "SEK"
-		usageDate := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
-		usageStart := date.Time{usageDate}
-		usageEnd := date.Time{time.Date(2018, time.July, 4, 00, 0, 0, 0, time.UTC)}
-		usageProps := consumption.UsageDetailProperties{InstanceID: &instanceID, PretaxCost: &pretaxCost, Currency: &currency, UsageStart: &usageStart, UsageEnd: &usageEnd}
-		period := billing.Period{ID: &id, Name: &name}
-		usage := consumption.UsageDetail{ID: &id, Name: &name, UsageDetailProperties: &usageProps}
+	// Test data
+	provider := "Microsoft.ContainerRegistry/registries"
+	id := "id"
+	name := "name"
+	instanceID := "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/" + provider + "/elastisys"
+	pretaxCost := decimal.NewFromFloat(10.50)
+	currency := "SEK"
+	usageDate := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
+	usageStart := date.Time{usageDate}
+	usageEnd := date.Time{time.Date(2018, time.July, 4, 00, 0, 0, 0, time.UTC)}
+	usageProps := consumption.UsageDetailProperties{InstanceID: &instanceID, PretaxCost: &pretaxCost, Currency: &currency, UsageStart: &usageStart, UsageEnd: &usageEnd}
+	period := billing.Period{ID: &id, Name: &name}
+	usage := consumption.UsageDetail{ID: &id, Name: &name, UsageDetailProperties: &usageProps}
 
+	t.Run("Get cloud cost", func(t *testing.T) {
 		mockPeriodsIter.EXPECT().Value().Return(period)
 
 		// We have a single item in the iterator so return true the first time, then false
@@ -89,6 +94,46 @@ func TestGetCloudCost(t *testing.T) {
 		}
 
 		checkCloudCost(t, expected, actual)
+	})
+
+	t.Run("Get partial cloud cost", func(t *testing.T) {
+		// Properties are missing
+		usage := consumption.UsageDetail{ID: &id, Name: &name, UsageDetailProperties: nil}
+
+		mockPeriodsIter.EXPECT().Value().Return(period)
+
+		// We have a single item in the iterator so return true the first time, then false
+		mockUsageIter.EXPECT().NotDone().Return(true)
+		mockUsageIter.EXPECT().NotDone().Return(false)
+		mockUsageIter.EXPECT().Value().Return(usage)
+
+		periodIter := mockPeriodsIter
+		mockClient.EXPECT().getPeriodIterator(gomock.Any()).Return(periodIter, nil)
+		mockClient.EXPECT().getUsageIterator(name, gomock.Any()).Return(mockUsageIter, nil)
+
+		// We expect no data because of the missing properties
+		expected := []dbclient.UsageData{}
+		actual, err := ue.GetCloudCost(usageDate)
+
+		if err != nil {
+			t.Errorf("Caught error: %s", err)
+		}
+
+		checkCloudCost(t, expected, actual)
+	})
+
+	t.Run("Fail to get usage iterator", func(t *testing.T) {
+		mockPeriodsIter.EXPECT().Value().Return(period)
+
+		periodIter := mockPeriodsIter
+		mockClient.EXPECT().getPeriodIterator(gomock.Any()).Return(periodIter, nil)
+		mockClient.EXPECT().getUsageIterator(name, gomock.Any()).Return(mockUsageIter, errors.New("error"))
+
+		_, err := ue.GetCloudCost(usageDate)
+
+		if err == nil {
+			t.Errorf("Expected error but got none!")
+		}
 	})
 }
 
