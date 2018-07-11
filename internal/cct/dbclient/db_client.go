@@ -1,6 +1,6 @@
-package db_client
+package dbclient
 
-//go:generate mockgen -destination=./db_client_mock.go -package=db_client -source=db_client.go
+//go:generate mockgen -destination=./dbclient_mock.go -package=dbclient -source=dbclient.go
 
 import (
 	"log"

@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/lentzi90/cloud-cost-tracker/internal/cct/cct_azure"
-	"github.com/lentzi90/cloud-cost-tracker/internal/cct/db_client"
+	"github.com/lentzi90/cloud-cost-tracker/internal/cct/azure"
+	"github.com/lentzi90/cloud-cost-tracker/internal/cct/dbclient"
 )
 
 var subscriptionID = flag.String("subscription-id", "", "The ID of the subscription.")
@@ -15,7 +15,7 @@ var subscriptionID = flag.String("subscription-id", "", "The ID of the subscript
 func main() {
 	fmt.Println("The coolest DB Client V1.0.5")
 
-	dbConfig := db_client.DBClientConfig{
+	dbConfig := dbclient.DBClientConfig{
 		DBName:   "prometheus",
 		Username: "prom",
 		Password: "prom",
@@ -28,10 +28,10 @@ func main() {
 	}
 
 	log.Println("Initializing client...")
-	client := cct_azure.NewRestClient(*subscriptionID)
-	usageExplorer := cct_azure.NewUsageExplorer(client)
+	client := azure.NewRestClient(*subscriptionID)
+	usageExplorer := azure.NewUsageExplorer(client)
 
-	db := db_client.NewDBClient(dbConfig)
+	db := dbclient.NewDBClient(dbConfig)
 	now := time.Date(2017, time.October, 5, 0, 0, 0, 0, time.UTC)
 	for i := 0; i < 2; i++ {
 		fetchTime := now.AddDate(0, 0, -i)

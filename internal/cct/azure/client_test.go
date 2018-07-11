@@ -1,4 +1,4 @@
-package cct_azure
+package azure
 
 import (
 	"errors"

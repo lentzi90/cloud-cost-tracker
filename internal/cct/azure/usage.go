@@ -1,4 +1,4 @@
-package cct_azure
+package azure
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lentzi90/cloud-cost-tracker/internal/cct/db_client"
+	"github.com/lentzi90/cloud-cost-tracker/internal/cct/dbclient"
 
 	"github.com/Azure/azure-sdk-for-go/services/consumption/mgmt/2018-05-31/consumption"
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
@@ -24,8 +24,8 @@ func NewUsageExplorer(client Client) UsageExplorer {
 }
 
 // GetCloudCost fetches the cost for the specified date
-func (e *UsageExplorer) GetCloudCost(date time.Time) ([]db_client.UsageData, error) {
-	var data []db_client.UsageData
+func (e *UsageExplorer) GetCloudCost(date time.Time) ([]dbclient.UsageData, error) {
+	var data []dbclient.UsageData
 	usageIter, err := e.getUsageByDate(date)
 	if err != nil {
 		return data, err
@@ -55,7 +55,7 @@ func (e *UsageExplorer) GetCloudCost(date time.Time) ([]db_client.UsageData, err
 		labels := make(map[string]string)
 		labels["provider"] = resourceProvider
 		cost, _ := pretaxCost.Float64()
-		data = append(data, db_client.UsageData{Cost: cost, Currency: currency, Date: date, Labels: labels})
+		data = append(data, dbclient.UsageData{Cost: cost, Currency: currency, Date: date, Labels: labels})
 
 		usageIter.Next()
 	}

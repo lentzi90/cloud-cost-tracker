@@ -1,4 +1,4 @@
-package db_client
+package dbclient
 
 import (
 	"errors"

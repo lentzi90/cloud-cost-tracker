@@ -1,6 +1,6 @@
-package cct_azure
+package azure
 
-//go:generate mockgen -destination=./client_mock.go -package=cct_azure -source=client.go
+//go:generate mockgen -destination=./client_mock.go -package=azure -source=client.go
 
 import (
 	"context"

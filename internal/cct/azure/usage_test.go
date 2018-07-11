@@ -1,4 +1,4 @@
-package cct_azure
+package azure
 
 import (
 	"errors"
@@ -11,7 +11,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/golang/mock/gomock"
-	"github.com/lentzi90/cloud-cost-tracker/internal/cct/db_client"
+	"github.com/lentzi90/cloud-cost-tracker/internal/cct/dbclient"
 	"github.com/shopspring/decimal"
 )
 
@@ -80,8 +80,8 @@ func TestGetCloudCost(t *testing.T) {
 
 		labels := map[string]string{"provider": provider}
 		cost, _ := pretaxCost.Float64()
-		data := db_client.UsageData{Cost: cost, Currency: currency, Date: usageDate, Labels: labels}
-		expected := []db_client.UsageData{data}
+		data := dbclient.UsageData{Cost: cost, Currency: currency, Date: usageDate, Labels: labels}
+		expected := []dbclient.UsageData{data}
 		actual, err := ue.GetCloudCost(usageDate)
 
 		if err != nil {
@@ -92,7 +92,7 @@ func TestGetCloudCost(t *testing.T) {
 	})
 }
 
-func checkCloudCost(t *testing.T, expected, actual []db_client.UsageData) {
+func checkCloudCost(t *testing.T, expected, actual []dbclient.UsageData) {
 	if len(actual) != len(expected) {
 		t.Errorf("UsageData slince lengths differ!")
 	}
