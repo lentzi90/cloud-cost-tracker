@@ -13,7 +13,7 @@ import (
 var subscriptionID = flag.String("subscription-id", "", "The ID of the subscription.")
 
 func main() {
-	fmt.Println("The coolest DB Client V1.0.5")
+	fmt.Println("Welcome to Cloud Cost Tracker V1.0.5")
 
 	dbConfig := db_client.DBClientConfig{
 		DBName:   "prometheus",

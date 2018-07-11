@@ -48,6 +48,7 @@ func TestConfig(t *testing.T) {
 	}
 }
 
+//Tests that everything works if everythings goes well
 func TestAddUsageData(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -60,7 +61,7 @@ func TestAddUsageData(t *testing.T) {
 	mockedBP.EXPECT().AddPoint(testPoint2).Times(1)
 
 	// Mocked Client that NewHTTPClient will return
-	mockConnection := createWorkingConnection(mockCtrl, 2, 2)
+	mockConnection := createWorkingConClient(mockCtrl, 2, 2)
 
 	// Mocked HTTPClient that will return the mocked Client
 	mockHTTPClient := createWorkingHTTPClient(mockCtrl, mockConnection)
@@ -95,12 +96,16 @@ func TestAddUsageData(t *testing.T) {
 	dbClient.batchPoints = mockBatchPoints
 	dbClient.point = mockPoint
 
-	if !dbClient.AddUsageData(usageDataArray) {
-		t.Fail()
+	actual := dbClient.AddUsageData(usageDataArray)
+	expected := true
+
+	if actual != expected {
+		t.Errorf("Wanted: AddUsageData return %v but got %v", expected, actual)
 	}
 }
 
-func TestAddUsageDataHTTPClientFail(t *testing.T) {
+// Tests that AddUsageData fails if httpClient fails
+func TesthttpClientFail(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	// Mocked HTTPClient that will return an error
@@ -118,17 +123,21 @@ func TestAddUsageDataHTTPClientFail(t *testing.T) {
 	dbClient := NewDBClient(dbConfig)
 	dbClient.httpClient = mockHTTPClient
 
-	if dbClient.AddUsageData(usageDataArray) {
-		t.Fail()
+	actual := dbClient.AddUsageData(usageDataArray)
+	expected := false
+
+	if actual != expected {
+		t.Errorf("Wanted: AddUsageData return %v but got %v", expected, actual)
 	}
 }
 
+// Tests that AddUsageData fails if batchPoints fails
 func TestBatchPointFail(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
 	// Mocked Client that NewHTTPClient will return
-	mockConnection := createWorkingConnection(mockCtrl, 1, 0)
+	mockConnection := createWorkingConClient(mockCtrl, 1, 0)
 
 	// Mocked HTTPClient that will return the mocked Client
 	mockHTTPClient := createWorkingHTTPClient(mockCtrl, mockConnection)
@@ -148,11 +157,15 @@ func TestBatchPointFail(t *testing.T) {
 	dbClient.httpClient = mockHTTPClient
 	dbClient.batchPoints = mockBatchPoints
 
-	if dbClient.AddUsageData(usageDataArray) {
-		t.Fail()
+	actual := dbClient.AddUsageData(usageDataArray)
+	expected := false
+
+	if actual != expected {
+		t.Errorf("Wanted: AddUsageData return %v but got %v", expected, actual)
 	}
 }
 
+// Tests that AddUsageData fails if point fails
 func TestPointFail(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -162,7 +175,7 @@ func TestPointFail(t *testing.T) {
 	mockedBP.EXPECT().AddPoint(gomock.Any()).Times(0)
 
 	// Mocked Client that NewHTTPClient will return
-	mockConnection := createWorkingConnection(mockCtrl, 1, 0)
+	mockConnection := createWorkingConClient(mockCtrl, 1, 0)
 
 	// Mocked HTTPClient that will return the mocked Client
 	mockHTTPClient := createWorkingHTTPClient(mockCtrl, mockConnection)
@@ -183,12 +196,15 @@ func TestPointFail(t *testing.T) {
 	dbClient.batchPoints = mockBatchPoints
 	dbClient.point = mockPoint
 
-	if dbClient.AddUsageData(usageDataArray) {
-		t.Fail()
+	actual := dbClient.AddUsageData(usageDataArray)
+	expected := false
+
+	if actual != expected {
+		t.Errorf("Wanted: AddUsageData return %v but got %v", expected, actual)
 	}
 }
 
-// Creates a working HTTPClient for testing
+// Creates a working HTTPClient mock for testing
 func createWorkingHTTPClient(mockCtrl *gomock.Controller, mockConnection conClient) httpClient {
 	mockHTTPClient := NewMockhttpClient(mockCtrl)
 	mockHTTPClient.EXPECT().NewHTTPClient(client.HTTPConfig{
@@ -203,7 +219,7 @@ func createWorkingHTTPClient(mockCtrl *gomock.Controller, mockConnection conClie
 	return mockHTTPClient
 }
 
-// Creates a working BatchPoint for testing
+// Creates a working BatchPoint mock for testing
 func createWorkingBatchPoints(mockCtrl *gomock.Controller, mockedBP bp, times int) batchPoints {
 	mockBatchPoints := NewMockbatchPoints(mockCtrl)
 	mockBatchPoints.EXPECT().NewBatchPoints(client.BatchPointsConfig{
@@ -217,7 +233,8 @@ func createWorkingBatchPoints(mockCtrl *gomock.Controller, mockedBP bp, times in
 	return mockBatchPoints
 }
 
-func createWorkingConnection(mockCtrl *gomock.Controller, timesClose int, timesWrite int) conClient {
+// Create a working conClient mock for testing
+func createWorkingConClient(mockCtrl *gomock.Controller, timesClose int, timesWrite int) conClient {
 	mockConnection := NewMockconClient(mockCtrl)
 	mockConnection.EXPECT().Close().Times(timesClose)
 	mockConnection.EXPECT().Write(gomock.Any()).Times(timesWrite)

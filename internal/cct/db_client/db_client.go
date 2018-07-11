@@ -71,9 +71,33 @@ type DBClient struct {
 	point
 }
 
+type httpClientStruct struct{}
+type batchPointsStruct struct{}
+type pointsStruct struct{}
+
+// NewHTTPClient TODO
+func (e httpClientStruct) NewHTTPClient(conf client.HTTPConfig) (client.Client, error) {
+	return client.NewHTTPClient(conf)
+}
+
+// NewBatchPoints TODO
+func (e batchPointsStruct) NewBatchPoints(conf client.BatchPointsConfig) (client.BatchPoints, error) {
+	return client.NewBatchPoints(conf)
+}
+
+// NewPoint TODO
+func (e pointsStruct) NewPoint(name string, tags map[string]string, fields map[string]interface{}, t ...time.Time) (*client.Point, error) {
+	return client.NewPoint(name, tags, fields, t...)
+}
+
 // NewDBClient initializes a DBClient
 func NewDBClient(config DBClientConfig) DBClient {
-	return DBClient{config: config}
+	return DBClient{
+		config:      config,
+		httpClient:  httpClientStruct{},
+		batchPoints: batchPointsStruct{},
+		point:       pointsStruct{},
+	}
 }
 
 // GetConfig TODO
