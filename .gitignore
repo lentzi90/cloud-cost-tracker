@@ -5,11 +5,6 @@
 *.so
 *.dylib
 
-bin/*
-!bin/README.md
-pkg/*
-!pkg/README.md
-
 # Test binary, build with `go test -c`
 *.test
 
@@ -20,10 +15,4 @@ pkg/*
 run.sh
 
 # Mocks are generated and not needed in version control
-mocks
 *_mock.go
-
-# Source from external packages
-src/github.com
-src/golang.org
-src/gopkg.in
