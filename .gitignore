@@ -16,3 +16,6 @@ run.sh
 
 # Mocks are generated and not needed in version control
 *_mock.go
+
+# vim swap
+**/*.swp
