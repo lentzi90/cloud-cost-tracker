@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func getS3Service() *s3.S3 {
+func newS3Service() *s3.S3 {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
@@ -22,7 +22,7 @@ func getS3Service() *s3.S3 {
 
 func getTable(bucket string, key string, query string) [][]string {
 
-	svc := getS3Service()
+	svc := newS3Service()
 
 	// Select contents of target csv
 	params := &s3.SelectObjectContentInput{
