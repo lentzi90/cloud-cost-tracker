@@ -47,7 +47,8 @@ func (e *UsageExplorer) GetCloudCost(date time.Time) ([]db_client.UsageData, err
 
 		labels := make(map[string]string)
 		labels["provider"] = resourceProvider
-		data = append(data, db_client.UsageData{Cost: pretaxCost, Currency: currency, Date: date, Labels: labels})
+		cost, _ := pretaxCost.Float64()
+		data = append(data, db_client.UsageData{Cost: cost, Currency: currency, Date: date, Labels: labels})
 
 		usageIterator.Next()
 	}
