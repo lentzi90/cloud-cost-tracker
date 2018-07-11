@@ -138,6 +138,7 @@ func TestGetCloudCost(t *testing.T) {
 	})
 }
 
+// Create a UsageDetail object from the provided input
 func fakeUsageDetail(usageDate time.Time, cost float64, currency string, instanceID string) consumption.UsageDetail {
 	id := "id"
 	name := "name"
@@ -160,11 +161,13 @@ func setupUsageIterator(mock MockusageIterator, data []consumption.UsageDetail) 
 	mock.EXPECT().NotDone().Return(false)
 }
 
+// Make the mocked client return desired iterators
 func setupClient(mock MockClient, periodsIter periodsIterator, usageIter usageIterator) {
 	mock.EXPECT().getPeriodIterator(gomock.Any()).Return(periodsIter, nil)
 	mock.EXPECT().getUsageIterator(gomock.Any(), gomock.Any()).Return(usageIter, nil)
 }
 
+// Check that the actual data resambles the expected data
 func checkCloudCost(t *testing.T, expected, actual []dbclient.UsageData) {
 	if len(actual) != len(expected) {
 		t.Errorf("UsageData slince lengths differ!")

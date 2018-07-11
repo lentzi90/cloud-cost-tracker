@@ -47,7 +47,6 @@ func (e *UsageExplorer) GetCloudCost(date time.Time) ([]dbclient.UsageData, erro
 		pretaxCost := *usageDetails.PretaxCost
 		currency := *usageDetails.Currency
 		usageStart := *usageDetails.UsageStart
-		// isEstimated := *usageDetails.IsEstimated
 
 		resourceProvider := getProvider(instanceID)
 		providers[resourceProvider] = decimal.Sum(providers[resourceProvider], pretaxCost)
