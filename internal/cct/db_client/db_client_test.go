@@ -48,7 +48,7 @@ func TestConfig(t *testing.T) {
 	}
 }
 
-//Tests that everything works if everythings goes well
+// Tests that everything works if everythings goes well
 func TestAddUsageData(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -63,11 +63,18 @@ func TestAddUsageData(t *testing.T) {
 	// Mocked Client that NewHTTPClient will return
 	mockConnection := createWorkingConClient(mockCtrl, 2, 2)
 
-	// Mocked HTTPClient that will return the mocked Client
-	mockHTTPClient := createWorkingHTTPClient(mockCtrl, mockConnection)
+	// Mocked influxInterface that will return the mocked Client
+	mockinfluxInterface := createWorkinginfluxInterface(mockCtrl, mockConnection)
 
 	// Mocked NewBatchPoints that will return the mocked BatchPoint
-	mockBatchPoints := createWorkingBatchPoints(mockCtrl, mockedBP, 2)
+	mockinfluxInterface.EXPECT().NewBatchPoints(client.BatchPointsConfig{
+		Database:  dbConfig.DBName,
+		Precision: "h",
+	}).
+		Times(2).
+		DoAndReturn(func(conf client.BatchPointsConfig) (client.BatchPoints, error) {
+			return mockedBP, nil
+		})
 
 	expectedFields1 := map[string]interface{}{"cost": usageData1.Cost}
 	expectedLabels1 := usageData1.Labels
@@ -78,23 +85,21 @@ func TestAddUsageData(t *testing.T) {
 	expectedLabels2["currency"] = usageData2.Currency
 
 	// Mocked NewPoint that will return the mocked Point
-	mockPoint := NewMockpoint(mockCtrl)
-	mockPoint.EXPECT().NewPoint("cost", expectedLabels1, expectedFields1, usageData1.Date).
+	//mockPoint := NewMockpoint(mockCtrl)
+	mockinfluxInterface.EXPECT().NewPoint("cost", expectedLabels1, expectedFields1, usageData1.Date).
 		Times(1).
 		DoAndReturn(func(name string, tags map[string]string, fields map[string]interface{}, t time.Time) (*client.Point, error) {
 			return testPoint1, nil
 		})
 
-	mockPoint.EXPECT().NewPoint("cost", expectedLabels2, expectedFields2, usageData2.Date).
+	mockinfluxInterface.EXPECT().NewPoint("cost", expectedLabels2, expectedFields2, usageData2.Date).
 		Times(1).
 		DoAndReturn(func(name string, tags map[string]string, fields map[string]interface{}, t time.Time) (*client.Point, error) {
 			return testPoint2, nil
 		})
 
 	dbClient := NewDBClient(dbConfig)
-	dbClient.httpClient = mockHTTPClient
-	dbClient.batchPoints = mockBatchPoints
-	dbClient.point = mockPoint
+	dbClient.influxInterface = mockinfluxInterface
 
 	actual := dbClient.AddUsageData(usageDataArray)
 	expected := true
@@ -105,12 +110,12 @@ func TestAddUsageData(t *testing.T) {
 }
 
 // Tests that AddUsageData fails if httpClient fails
-func TesthttpClientFail(t *testing.T) {
+func TestHttpClientFail(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	// Mocked HTTPClient that will return an error
-	mockHTTPClient := NewMockhttpClient(mockCtrl)
-	mockHTTPClient.EXPECT().NewHTTPClient(client.HTTPConfig{
+	// Mocked influxInterface that will return an error
+	mockinfluxInterface := NewMockinfluxInterface(mockCtrl)
+	mockinfluxInterface.EXPECT().NewHTTPClient(client.HTTPConfig{
 		Addr:     dbConfig.Address,
 		Username: dbConfig.Username,
 		Password: dbConfig.Password,
@@ -121,7 +126,7 @@ func TesthttpClientFail(t *testing.T) {
 		})
 
 	dbClient := NewDBClient(dbConfig)
-	dbClient.httpClient = mockHTTPClient
+	dbClient.influxInterface = mockinfluxInterface
 
 	actual := dbClient.AddUsageData(usageDataArray)
 	expected := false
@@ -139,12 +144,11 @@ func TestBatchPointFail(t *testing.T) {
 	// Mocked Client that NewHTTPClient will return
 	mockConnection := createWorkingConClient(mockCtrl, 1, 0)
 
-	// Mocked HTTPClient that will return the mocked Client
-	mockHTTPClient := createWorkingHTTPClient(mockCtrl, mockConnection)
+	// Mocked influxInterface that will return the mocked Client
+	mockinfluxInterface := createWorkinginfluxInterface(mockCtrl, mockConnection)
 
 	// Mocked NewBatchPoints that will return an error
-	mockBatchPoints := NewMockbatchPoints(mockCtrl)
-	mockBatchPoints.EXPECT().NewBatchPoints(client.BatchPointsConfig{
+	mockinfluxInterface.EXPECT().NewBatchPoints(client.BatchPointsConfig{
 		Database:  dbConfig.DBName,
 		Precision: "h",
 	}).
@@ -154,8 +158,7 @@ func TestBatchPointFail(t *testing.T) {
 		})
 
 	dbClient := NewDBClient(dbConfig)
-	dbClient.httpClient = mockHTTPClient
-	dbClient.batchPoints = mockBatchPoints
+	dbClient.influxInterface = mockinfluxInterface
 
 	actual := dbClient.AddUsageData(usageDataArray)
 	expected := false
@@ -177,24 +180,26 @@ func TestPointFail(t *testing.T) {
 	// Mocked Client that NewHTTPClient will return
 	mockConnection := createWorkingConClient(mockCtrl, 1, 0)
 
-	// Mocked HTTPClient that will return the mocked Client
-	mockHTTPClient := createWorkingHTTPClient(mockCtrl, mockConnection)
+	// Mocked influxInterface that will return the mocked Client
+	mockinfluxInterface := createWorkinginfluxInterface(mockCtrl, mockConnection)
 
-	// Mocked NewBatchPoints that will return the mocked BatchPoint
-	mockBatchPoints := createWorkingBatchPoints(mockCtrl, mockedBP, 1)
+	mockinfluxInterface.EXPECT().NewBatchPoints(client.BatchPointsConfig{
+		Database:  dbConfig.DBName,
+		Precision: "h",
+	}).
+		Times(1).
+		DoAndReturn(func(conf client.BatchPointsConfig) (client.BatchPoints, error) {
+			return mockedBP, nil
+		})
 
-	// Mocked NewPoint that will return the mocked Point
-	mockPoint := NewMockpoint(mockCtrl)
-	mockPoint.EXPECT().NewPoint("cost", gomock.Any(), gomock.Any(), gomock.Any()).
+	mockinfluxInterface.EXPECT().NewPoint("cost", gomock.Any(), gomock.Any(), gomock.Any()).
 		Times(1).
 		DoAndReturn(func(name string, tags map[string]string, fields map[string]interface{}, t time.Time) (*client.Point, error) {
 			return nil, errors.New("testError")
 		})
 
 	dbClient := NewDBClient(dbConfig)
-	dbClient.httpClient = mockHTTPClient
-	dbClient.batchPoints = mockBatchPoints
-	dbClient.point = mockPoint
+	dbClient.influxInterface = mockinfluxInterface
 
 	actual := dbClient.AddUsageData(usageDataArray)
 	expected := false
@@ -204,10 +209,10 @@ func TestPointFail(t *testing.T) {
 	}
 }
 
-// Creates a working HTTPClient mock for testing
-func createWorkingHTTPClient(mockCtrl *gomock.Controller, mockConnection conClient) httpClient {
-	mockHTTPClient := NewMockhttpClient(mockCtrl)
-	mockHTTPClient.EXPECT().NewHTTPClient(client.HTTPConfig{
+// Creates a working influxInterface mock for testing
+func createWorkinginfluxInterface(mockCtrl *gomock.Controller, mockConnection conClient) *MockinfluxInterface {
+	mockinfluxInterface := NewMockinfluxInterface(mockCtrl)
+	mockinfluxInterface.EXPECT().NewHTTPClient(client.HTTPConfig{
 		Addr:     dbConfig.Address,
 		Username: dbConfig.Username,
 		Password: dbConfig.Password,
@@ -216,21 +221,7 @@ func createWorkingHTTPClient(mockCtrl *gomock.Controller, mockConnection conClie
 		DoAndReturn(func(conf client.HTTPConfig) (client.Client, error) {
 			return mockConnection, nil
 		})
-	return mockHTTPClient
-}
-
-// Creates a working BatchPoint mock for testing
-func createWorkingBatchPoints(mockCtrl *gomock.Controller, mockedBP bp, times int) batchPoints {
-	mockBatchPoints := NewMockbatchPoints(mockCtrl)
-	mockBatchPoints.EXPECT().NewBatchPoints(client.BatchPointsConfig{
-		Database:  dbConfig.DBName,
-		Precision: "h",
-	}).
-		Times(times).
-		DoAndReturn(func(conf client.BatchPointsConfig) (client.BatchPoints, error) {
-			return mockedBP, nil
-		})
-	return mockBatchPoints
+	return mockinfluxInterface
 }
 
 // Create a working conClient mock for testing

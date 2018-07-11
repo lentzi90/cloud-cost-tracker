@@ -49,54 +49,40 @@ type bp interface {
 }
 
 // HTTPClient TODO
-type httpClient interface {
+type influxInterface interface {
 	NewHTTPClient(conf client.HTTPConfig) (client.Client, error)
-}
-
-// BatchPoints TODO
-type batchPoints interface {
 	NewBatchPoints(conf client.BatchPointsConfig) (client.BatchPoints, error)
-}
-
-// Point TODO
-type point interface {
 	NewPoint(name string, tags map[string]string, fields map[string]interface{}, t ...time.Time) (*client.Point, error)
 }
 
 // DBClient Can be used to add UsageData to a DB
 type DBClient struct {
 	config DBClientConfig
-	httpClient
-	batchPoints
-	point
+	influxInterface
 }
 
-type httpClientStruct struct{}
-type batchPointsStruct struct{}
-type pointsStruct struct{}
+type influxClient struct{}
 
 // NewHTTPClient TODO
-func (e httpClientStruct) NewHTTPClient(conf client.HTTPConfig) (client.Client, error) {
+func (e influxClient) NewHTTPClient(conf client.HTTPConfig) (client.Client, error) {
 	return client.NewHTTPClient(conf)
 }
 
 // NewBatchPoints TODO
-func (e batchPointsStruct) NewBatchPoints(conf client.BatchPointsConfig) (client.BatchPoints, error) {
+func (e influxClient) NewBatchPoints(conf client.BatchPointsConfig) (client.BatchPoints, error) {
 	return client.NewBatchPoints(conf)
 }
 
 // NewPoint TODO
-func (e pointsStruct) NewPoint(name string, tags map[string]string, fields map[string]interface{}, t ...time.Time) (*client.Point, error) {
+func (e influxClient) NewPoint(name string, tags map[string]string, fields map[string]interface{}, t ...time.Time) (*client.Point, error) {
 	return client.NewPoint(name, tags, fields, t...)
 }
 
 // NewDBClient initializes a DBClient
 func NewDBClient(config DBClientConfig) DBClient {
 	return DBClient{
-		config:      config,
-		httpClient:  httpClientStruct{},
-		batchPoints: batchPointsStruct{},
-		point:       pointsStruct{},
+		config:          config,
+		influxInterface: influxClient{},
 	}
 }
 
@@ -108,7 +94,7 @@ func (e *DBClient) GetConfig() DBClientConfig {
 // AddUsageData Adds an array of UsageData to the DB
 func (e *DBClient) AddUsageData(usageData []UsageData) bool {
 	var c conClient
-	c, err := e.httpClient.NewHTTPClient(client.HTTPConfig{
+	c, err := e.influxInterface.NewHTTPClient(client.HTTPConfig{
 		Addr:     e.config.Address,
 		Username: e.config.Username,
 		Password: e.config.Password,
@@ -144,7 +130,7 @@ func (e *DBClient) AddUsageData(usageData []UsageData) bool {
 func (e *DBClient) createBatchPoints(data UsageData) (bp, error) {
 	// Create a new point batch
 	var bp bp
-	bp, err := e.batchPoints.NewBatchPoints(client.BatchPointsConfig{
+	bp, err := e.influxInterface.NewBatchPoints(client.BatchPointsConfig{
 		Database:  e.config.DBName,
 		Precision: "h",
 	})
@@ -170,7 +156,7 @@ func (e *DBClient) createBatchPoints(data UsageData) (bp, error) {
 	}
 
 	// Create and add point
-	pt, err := e.point.NewPoint("cost", m, fields, data.Date)
+	pt, err := e.influxInterface.NewPoint("cost", m, fields, data.Date)
 	if err != nil {
 		return nil, err
 	}
