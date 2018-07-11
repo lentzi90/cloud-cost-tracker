@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/lentzi90/cct-azure/src/cct/cct_azure"
-	"github.com/lentzi90/cct-azure/src/cct/db_client"
+	"github.com/lentzi90/cct-azure/internal/cct/cct_azure"
+	"github.com/lentzi90/cct-azure/internal/cct/db_client"
 )
 
 var subscriptionID = flag.String("subscription-id", "", "The ID of the subscription.")
@@ -32,8 +32,8 @@ func main() {
 	usageExplorer := cct_azure.NewUsageExplorer(client)
 
 	db := db_client.NewDBClient(dbConfig)
-	now := time.Date(2017, time.October, 28, 0, 0, 0, 0, time.UTC)
-	for i := 0; i < 35; i++ {
+	now := time.Date(2017, time.October, 5, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 2; i++ {
 		fetchTime := now.AddDate(0, 0, -i)
 		fmt.Println("Getting for period", fetchTime)
 		test, err := usageExplorer.GetCloudCost(fetchTime)

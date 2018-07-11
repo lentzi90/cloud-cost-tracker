@@ -7,7 +7,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
 	"github.com/golang/mock/gomock"
-	"github.com/lentzi90/cct-azure/src/cct/cct_azure/mocks"
+	"github.com/lentzi90/cct-azure/internal/cct/cct_azure/mocks"
 )
 
 func setUp() UsageExplorer {
