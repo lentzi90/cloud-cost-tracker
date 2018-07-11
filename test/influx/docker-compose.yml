@@ -7,8 +7,6 @@ services:
       - "8086:8086"
     env_file:
       - 'env.influxdb'
-    volumes:
-      - ./data:/var/lib/influxdb
     network_mode: host
 
   grafana:

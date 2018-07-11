@@ -3,13 +3,12 @@ package dbclient
 //go:generate mockgen -destination=./dbclient_mock.go -package=dbclient -source=dbclient.go
 
 import (
-	"log"
 	"time"
 
 	client "github.com/influxdata/influxdb/client/v2"
 )
 
-// UsageData TODO
+// UsageData Struct that the submodules should return
 type UsageData struct {
 	Cost     float64
 	Currency string
@@ -25,7 +24,7 @@ type DBClientConfig struct {
 	Address  string
 }
 
-// Connection TODO
+// conClient Interface thats the same as client.Client to make testing easier
 type conClient interface {
 	Write(bp client.BatchPoints) error
 	Close() error
@@ -33,7 +32,7 @@ type conClient interface {
 	Query(q client.Query) (*client.Response, error)
 }
 
-// BP TODO
+// bp Interface thats the same as client.BatchPoints to make testing easier
 type bp interface {
 	AddPoint(p *client.Point)
 	AddPoints(ps []*client.Point)
@@ -48,50 +47,60 @@ type bp interface {
 	SetRetentionPolicy(s string)
 }
 
-// HTTPClient TODO
-type httpClient interface {
+// HTTPClient Interface with the functions that this package uses from client to make testing easier
+type influxInterface interface {
 	NewHTTPClient(conf client.HTTPConfig) (client.Client, error)
-}
-
-// BatchPoints TODO
-type batchPoints interface {
 	NewBatchPoints(conf client.BatchPointsConfig) (client.BatchPoints, error)
+	NewPoint(name string, tags map[string]string, fields map[string]interface{}, t ...time.Time) (*client.Point, error)
 }
 
-// Point TODO
-type point interface {
-	NewPoint(name string, tags map[string]string, fields map[string]interface{}, t ...time.Time) (*client.Point, error)
+// influxClient Struct that will include the functions from influxInterface
+type influxClient struct{}
+
+// NewHTTPClient Proxy function to client
+func (e influxClient) NewHTTPClient(conf client.HTTPConfig) (client.Client, error) {
+	return client.NewHTTPClient(conf)
+}
+
+// NewBatchPoints Proxy function to client
+func (e influxClient) NewBatchPoints(conf client.BatchPointsConfig) (client.BatchPoints, error) {
+	return client.NewBatchPoints(conf)
+}
+
+// NewPoint Proxy function to client
+func (e influxClient) NewPoint(name string, tags map[string]string, fields map[string]interface{}, t ...time.Time) (*client.Point, error) {
+	return client.NewPoint(name, tags, fields, t...)
 }
 
 // DBClient Can be used to add UsageData to a DB
 type DBClient struct {
 	config DBClientConfig
-	httpClient
-	batchPoints
-	point
+	influxInterface
 }
 
 // NewDBClient initializes a DBClient
 func NewDBClient(config DBClientConfig) DBClient {
-	return DBClient{config: config}
+	return DBClient{
+		config:          config,
+		influxInterface: influxClient{},
+	}
 }
 
-// GetConfig TODO
+// GetConfig Returns the config
 func (e *DBClient) GetConfig() DBClientConfig {
 	return e.config
 }
 
 // AddUsageData Adds an array of UsageData to the DB
-func (e *DBClient) AddUsageData(usageData []UsageData) bool {
+func (e *DBClient) AddUsageData(usageData []UsageData) error {
 	var c conClient
-	c, err := e.httpClient.NewHTTPClient(client.HTTPConfig{
+	c, err := e.influxInterface.NewHTTPClient(client.HTTPConfig{
 		Addr:     e.config.Address,
 		Username: e.config.Username,
 		Password: e.config.Password,
 	})
 	if err != nil {
-		log.Println(err)
-		return false
+		return err
 	}
 
 	defer c.Close()
@@ -99,20 +108,19 @@ func (e *DBClient) AddUsageData(usageData []UsageData) bool {
 	for _, data := range usageData {
 		bp, err := e.createBatchPoints(data)
 		if err != nil {
-			log.Println(err)
-			return false
+			return err
 		}
 
 		if err := c.Write(bp); err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 
 	if err := c.Close(); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	return true
+	return nil
 }
 
 // createBatchPoints Creates a batch of points from one UsageData that can be added to the DB
@@ -120,7 +128,7 @@ func (e *DBClient) AddUsageData(usageData []UsageData) bool {
 func (e *DBClient) createBatchPoints(data UsageData) (bp, error) {
 	// Create a new point batch
 	var bp bp
-	bp, err := e.batchPoints.NewBatchPoints(client.BatchPointsConfig{
+	bp, err := e.influxInterface.NewBatchPoints(client.BatchPointsConfig{
 		Database:  e.config.DBName,
 		Precision: "h",
 	})
@@ -129,24 +137,20 @@ func (e *DBClient) createBatchPoints(data UsageData) (bp, error) {
 	}
 
 	// Convert decimal to float and add as field
-	cost := data.Cost
-	fields := map[string]interface{}{
-		"cost": cost,
-		//"currency": data.currency, //If the currency should be a value
-	}
+	cost := map[string]interface{}{"cost": data.Cost}
 
 	// Merge currency into label map
-	m := map[string]string{}
+	labels := map[string]string{}
 
 	if data.Labels != nil {
 		data.Labels["currency"] = data.Currency
-		m = data.Labels
+		labels = data.Labels
 	} else {
-		m["currency"] = data.Currency
+		labels["currency"] = data.Currency
 	}
 
 	// Create and add point
-	pt, err := e.point.NewPoint("cost", m, fields, data.Date)
+	pt, err := e.influxInterface.NewPoint("cost", labels, cost, data.Date)
 	if err != nil {
 		return nil, err
 	}
