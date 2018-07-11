@@ -1,16 +1,17 @@
 package db_client
 
+//go:generate mockgen -destination=./db_client_mock.go -package=db_client -source=db_client.go
+
 import (
 	"log"
 	"time"
 
 	client "github.com/influxdata/influxdb/client/v2"
-	"github.com/shopspring/decimal"
 )
 
 // UsageData TODO
 type UsageData struct {
-	Cost     decimal.Decimal
+	Cost     float64
 	Currency string
 	Date     time.Time
 	Labels   map[string]string
@@ -24,9 +25,50 @@ type DBClientConfig struct {
 	Address  string
 }
 
+// Connection TODO
+type conClient interface {
+	Write(bp client.BatchPoints) error
+	Close() error
+	Ping(timeout time.Duration) (time.Duration, string, error)
+	Query(q client.Query) (*client.Response, error)
+}
+
+// BP TODO
+type bp interface {
+	AddPoint(p *client.Point)
+	AddPoints(ps []*client.Point)
+	Points() []*client.Point
+	Precision() string
+	SetPrecision(s string) error
+	Database() string
+	SetDatabase(s string)
+	WriteConsistency() string
+	SetWriteConsistency(s string)
+	RetentionPolicy() string
+	SetRetentionPolicy(s string)
+}
+
+// HTTPClient TODO
+type httpClient interface {
+	NewHTTPClient(conf client.HTTPConfig) (client.Client, error)
+}
+
+// BatchPoints TODO
+type batchPoints interface {
+	NewBatchPoints(conf client.BatchPointsConfig) (client.BatchPoints, error)
+}
+
+// Point TODO
+type point interface {
+	NewPoint(name string, tags map[string]string, fields map[string]interface{}, t ...time.Time) (*client.Point, error)
+}
+
 // DBClient Can be used to add UsageData to a DB
 type DBClient struct {
 	config DBClientConfig
+	httpClient
+	batchPoints
+	point
 }
 
 // NewDBClient initializes a DBClient
@@ -34,23 +76,31 @@ func NewDBClient(config DBClientConfig) DBClient {
 	return DBClient{config: config}
 }
 
+// GetConfig TODO
+func (e *DBClient) GetConfig() DBClientConfig {
+	return e.config
+}
+
 // AddUsageData Adds an array of UsageData to the DB
-func (e *DBClient) AddUsageData(usageData []UsageData) {
-	c, err := client.NewHTTPClient(client.HTTPConfig{
+func (e *DBClient) AddUsageData(usageData []UsageData) bool {
+	var c conClient
+	c, err := e.httpClient.NewHTTPClient(client.HTTPConfig{
 		Addr:     e.config.Address,
 		Username: e.config.Username,
 		Password: e.config.Password,
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return false
 	}
+
 	defer c.Close()
 
 	for _, data := range usageData {
-		bp, err := e.CreateBatchPoints(data)
+		bp, err := e.createBatchPoints(data)
 		if err != nil {
-			log.Fatal(err)
-			break
+			log.Println(err)
+			return false
 		}
 
 		if err := c.Write(bp); err != nil {
@@ -61,13 +111,16 @@ func (e *DBClient) AddUsageData(usageData []UsageData) {
 	if err := c.Close(); err != nil {
 		log.Fatal(err)
 	}
+
+	return true
 }
 
-// CreateBatchPoints Creates a batch of points from one UsageData that can be added to the DB
+// createBatchPoints Creates a batch of points from one UsageData that can be added to the DB
 // If the second parameter is nil no error occurred.
-func (e *DBClient) CreateBatchPoints(data UsageData) (client.BatchPoints, error) {
+func (e *DBClient) createBatchPoints(data UsageData) (bp, error) {
 	// Create a new point batch
-	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+	var bp bp
+	bp, err := e.batchPoints.NewBatchPoints(client.BatchPointsConfig{
 		Database:  e.config.DBName,
 		Precision: "h",
 	})
@@ -76,7 +129,7 @@ func (e *DBClient) CreateBatchPoints(data UsageData) (client.BatchPoints, error)
 	}
 
 	// Convert decimal to float and add as field
-	cost, _ := data.Cost.Float64()
+	cost := data.Cost
 	fields := map[string]interface{}{
 		"cost": cost,
 		//"currency": data.currency, //If the currency should be a value
@@ -93,7 +146,7 @@ func (e *DBClient) CreateBatchPoints(data UsageData) (client.BatchPoints, error)
 	}
 
 	// Create and add point
-	pt, err := client.NewPoint("cost", m, fields, data.Date)
+	pt, err := e.point.NewPoint("cost", m, fields, data.Date)
 	if err != nil {
 		return nil, err
 	}

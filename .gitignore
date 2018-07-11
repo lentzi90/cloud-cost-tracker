@@ -21,6 +21,7 @@ run.sh
 
 # Mocks are generated and not needed in version control
 mocks
+*_mock.go
 
 # Source from external packages
 src/github.com
