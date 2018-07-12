@@ -6,7 +6,6 @@ import (
 	"time"
 
 	client "github.com/influxdata/influxdb/client/v2"
-	"github.com/lentzi90/cloud-cost-tracker/internal/cct/dbclient"
 )
 
 // UsageData Struct that the submodules should return
@@ -19,7 +18,7 @@ type UsageData struct {
 
 // CloudCost TODO
 type CloudCost interface {
-	GetCloudCost(timestamp time.Time) ([]dbclient.UsageData, error)
+	GetCloudCost(timestamp time.Time) ([]UsageData, error)
 }
 
 // DBClientConfig Config struct with connection information of the influxDB
