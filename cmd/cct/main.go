@@ -57,7 +57,7 @@ func main() {
 	}
 
 	db := dbclient.NewDBClient(dbConfig)
-	now := time.Date(2017, time.October, 5, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2018, time.July, 10, 0, 0, 0, 0, time.UTC)
 	for i := 0; i < 2; i++ {
 		fetchTime := now.AddDate(0, 0, -i)
 		fmt.Println("Getting for period", fetchTime)
@@ -82,6 +82,5 @@ func initAzureClient() azure.UsageExplorer {
 }
 
 func initAwsClient() aws.Client {
-	client := aws.NewClient("elastisys-billing-data", "key")
-	return client
+	return aws.NewClient("elastisys-billing-data", "key")
 }
