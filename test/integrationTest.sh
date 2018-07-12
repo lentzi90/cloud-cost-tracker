@@ -74,8 +74,8 @@ runTest(){
         --db-address http://$DATABASEHOST:$DATABASEPORT \
         --db-name $DATABASE \
         --db-username $DATABASEUSER --db-password $DATABASEPASSWORD 2>&1 | \
-        while read line; do echo -e "\e[93m$1:\e[0m $line"; done
-    goCode=$?
+        while read line; do echo -e "\e[93m$1:\e[0m $line"; done; goCode=${PIPESTATUS[0]}
+
     logInfo "Program done."
     if [ $goCode -ne 0 ]; then
         stopTest 1 "Program terminated with code $goCode when fetching data for $1"
