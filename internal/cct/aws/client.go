@@ -199,6 +199,23 @@ func keyIsValid(key string, date string) bool {
 	return true
 }
 
+func selectKey(objects []*s3.Object, date string) string {
+	var latest time.Time
+	var key string
+	latest = *objects[0].LastModified
+	key = *objects[0].Key
+	for _, val := range objects {
+		if keyIsValid(*val.Key, date) {
+			if val.LastModified.After(latest) {
+				latest = *val.LastModified
+				key = *val.Key
+			}
+			// fmt.Println(*val.Key + " " + val.LastModified.String())
+		}
+	}
+	return key
+}
+
 // GetBucketKey ...
 func GetBucketKey(bucket string, timestamp time.Time) string {
 	svc := newS3Service()
@@ -212,18 +229,11 @@ func GetBucketKey(bucket string, timestamp time.Time) string {
 
 	// 20180701-20180801
 	form := "20060102"
-	foo := start.Format(form)
-	bar := stop.Format(form)
-	baz := foo + "-" + bar
+	date := start.Format(form) + "-" + stop.Format(form)
 
 	resp, _ := svc.ListObjects(params)
-	for _, val := range resp.Contents {
-		if keyIsValid(*val.Key, baz) {
-			// val.Key
-			// val.LastModified
-			// fmt.Println(*val.LastModified)
-			fmt.Println(*val.Key)
-		}
-	}
+
+	fmt.Println(selectKey(resp.Contents, date))
+
 	return ""
 }
