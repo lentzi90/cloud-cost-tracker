@@ -21,7 +21,7 @@ type CloudCostClient interface {
 	GetCloudCost(time.Time) ([]UsageData, error)
 }
 
-// DBClientConfig Config struct with connection information of the influxDB
+// Config struct with connection information of the influxDB
 type Config struct {
 	DBName   string
 	Username string
