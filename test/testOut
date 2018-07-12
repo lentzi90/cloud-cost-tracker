@@ -1,0 +1,9 @@
+name: cost
+time			cloud	cost			currency	service
+----			-----	----			--------	-------
+1507075200000000000	azure	0.1949901520896		SEK		Microsoft.Compute/disks
+1507075200000000000	azure	0.6744044159999999	SEK		Microsoft.Network/publicIPAddresses
+1507075200000000000	azure	12.4593326968176	SEK		Microsoft.Compute/virtualMachines
+1507161600000000000	azure	0.6772380479999999	SEK		Microsoft.Network/publicIPAddresses
+1507161600000000000	azure	12.4679808		SEK		Microsoft.Compute/virtualMachines
+1507161600000000000	azure	0.1949901520896		SEK		Microsoft.Compute/disks
