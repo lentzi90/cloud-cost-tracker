@@ -21,6 +21,12 @@ func init() {
 	log.SetOutput(ioutil.Discard)
 }
 
+// TODO: Add test for multiple instances per provider. This is not working correctly now
+
+var (
+	subscriptionID = "abcdefgh-1234-1234-abcd-abcdefghijkl"
+)
+
 func TestParseProvider(t *testing.T) {
 	tests := map[string]string{
 		"Microsoft.ContainerRegistry/registries": "/subscriptions/abcdefgh-1234-1234-abcd-abcdefghijkl/resourceGroups/elastisys-container-registry/providers/Microsoft.ContainerRegistry/registries/elastisys",
@@ -51,7 +57,6 @@ func TestGetCloudCost(t *testing.T) {
 	name := "name"
 	period := billing.Period{ID: &id, Name: &name}
 	provider := "Microsoft.ContainerRegistry/registries"
-	subscriptionID := "abcdefgh-1234-1234-abcd-abcdefghijkl"
 	instanceID := "/subscriptions/" + subscriptionID + "/resourceGroups/elastisys-container-registry/providers/" + provider + "/elastisys"
 	cost := 10.50
 	currency := "SEK"
@@ -59,7 +64,7 @@ func TestGetCloudCost(t *testing.T) {
 	usage := fakeUsageDetail(usageDate, cost, currency, instanceID)
 	usageSlice := []consumption.UsageDetail{usage}
 
-	subscriptions := []subscription.Model{subscription.Model{ID: &subscriptionID}}
+	subscriptions := []subscription.Model{subscription.Model{SubscriptionID: &subscriptionID}}
 
 	t.Run("Fail to get subscriptions iterator", func(t *testing.T) {
 		err0 := errors.New("error")
@@ -76,7 +81,7 @@ func TestGetCloudCost(t *testing.T) {
 	t.Run("Fail to get period iterator", func(t *testing.T) {
 		err0 := errors.New("error")
 		mockClient.EXPECT().getSubscriptionIterator().Return(mockSubscriptionsIter, nil)
-		mockClient.EXPECT().getPeriodIterator("blabla", gomock.Any()).Return(mockPeriodsIter, err0)
+		mockClient.EXPECT().getPeriodIterator(subscriptionID, gomock.Any()).Return(mockPeriodsIter, err0)
 		setupSubscriptionIterator(*mockSubscriptionsIter, subscriptions)
 		date := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
 
@@ -90,8 +95,8 @@ func TestGetCloudCost(t *testing.T) {
 	t.Run("Fail to get usage iterator", func(t *testing.T) {
 		mockPeriodsIter.EXPECT().Value().Return(period)
 		mockClient.EXPECT().getSubscriptionIterator().Return(mockSubscriptionsIter, nil)
-		mockClient.EXPECT().getPeriodIterator("blabla", gomock.Any()).Return(mockPeriodsIter, nil)
-		mockClient.EXPECT().getUsageIterator("blabla", name, gomock.Any()).Return(mockUsageIter, errors.New("error"))
+		mockClient.EXPECT().getPeriodIterator(subscriptionID, gomock.Any()).Return(mockPeriodsIter, nil)
+		mockClient.EXPECT().getUsageIterator(subscriptionID, name, gomock.Any()).Return(mockUsageIter, errors.New("error"))
 		setupSubscriptionIterator(*mockSubscriptionsIter, subscriptions)
 
 		_, err := ue.GetCloudCost(usageDate)
@@ -200,8 +205,8 @@ func setupSubscriptionIterator(mock MocksubscriptionIterator, data []subscriptio
 
 // Make the mocked client return desired iterators
 func setupClient(mock MockClient, periodsIter periodsIterator, usageIter usageIterator) {
-	mock.EXPECT().getPeriodIterator("blabla", gomock.Any()).Return(periodsIter, nil)
-	mock.EXPECT().getUsageIterator("blabla", gomock.Any(), gomock.Any()).Return(usageIter, nil)
+	mock.EXPECT().getPeriodIterator(subscriptionID, gomock.Any()).Return(periodsIter, nil)
+	mock.EXPECT().getUsageIterator(subscriptionID, gomock.Any(), gomock.Any()).Return(usageIter, nil)
 }
 
 // Check that the actual data resambles the expected data

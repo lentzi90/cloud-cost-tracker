@@ -44,11 +44,11 @@ func (e *UsageExplorer) GetCloudCost(date time.Time) ([]dbclient.UsageData, erro
 	return data, nil
 }
 
-func (e *UsageExplorer) getPeriodByDate(date time.Time) (billing.Period, error) {
+func (e *UsageExplorer) getPeriodByDate(subscriptionID string, date time.Time) (billing.Period, error) {
 	dateStr := date.Format("2006-01-02")
 	filter := "billingPeriodEndDate gt " + dateStr
 
-	periods, err := e.client.getPeriodIterator("blabla", filter)
+	periods, err := e.client.getPeriodIterator(subscriptionID, filter)
 	if err != nil {
 		return billing.Period{}, err
 	}
@@ -57,8 +57,8 @@ func (e *UsageExplorer) getPeriodByDate(date time.Time) (billing.Period, error) 
 	return periods.Value(), nil
 }
 
-func (e *UsageExplorer) getUsageByDate(date time.Time) (usageIterator, error) {
-	billingPeriod, err := e.getPeriodByDate(date)
+func (e *UsageExplorer) getUsageByDate(subscriptionID string, date time.Time) (usageIterator, error) {
+	billingPeriod, err := e.getPeriodByDate(subscriptionID, date)
 	if err != nil {
 		return &consumption.UsageDetailsListResultIterator{}, err
 	}
@@ -66,7 +66,7 @@ func (e *UsageExplorer) getUsageByDate(date time.Time) (usageIterator, error) {
 	filter := fmt.Sprintf("properties/usageStart eq '%s'", date.Format("2006-01-02"))
 	log.Println("Trying to get usage for billing period", billingPeriodName)
 
-	result, err := e.client.getUsageIterator("blabla", billingPeriodName, filter)
+	result, err := e.client.getUsageIterator(subscriptionID, billingPeriodName, filter)
 	if err != nil {
 		return &consumption.UsageDetailsListResultIterator{}, err
 	}
@@ -84,11 +84,12 @@ func (e *UsageExplorer) getSubscriptions() ([]string, error) {
 
 	for subIter.NotDone() {
 		sub := subIter.Value()
-		if sub.ID == nil {
+		subIter.Next()
+		if sub.SubscriptionID == nil {
 			continue
 		}
-		log.Println("Found subscription:", *sub.ID)
-		result = append(result, *sub.ID)
+
+		result = append(result, *sub.SubscriptionID)
 	}
 
 	return result, err
@@ -96,7 +97,7 @@ func (e *UsageExplorer) getSubscriptions() ([]string, error) {
 
 func (e *UsageExplorer) getSubscriptionCost(subscriptionID string, date time.Time) ([]dbclient.UsageData, error) {
 	var data []dbclient.UsageData
-	usageIter, err := e.getUsageByDate(date)
+	usageIter, err := e.getUsageByDate(subscriptionID, date)
 	if err != nil {
 		return data, err
 	}
