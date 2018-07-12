@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lentzi90/cloud-cost-tracker/internal/cct/aws"
 	"github.com/lentzi90/cloud-cost-tracker/internal/cct/azure"
 	"github.com/lentzi90/cloud-cost-tracker/internal/cct/dbclient"
 )
@@ -36,7 +37,8 @@ func main() {
 		Address:  *dbAddress,
 	}
 
-	var usageExplorer azure.UsageExplorer
+	//var usageExplorer azure.UsageExplorer
+	var usageExplorer dbclient.CloudCost
 	if strings.EqualFold(*cloud, "azure") {
 		log.Println("Initializing Azure client...")
 		usageExplorer = initAzureClient()
@@ -66,13 +68,13 @@ func main() {
 	log.Println("DONE!!!")
 }
 
-func initAzureClient() azure.UsageExplorer {
+func initAzureClient() dbclient.CloudCost {
 	subscriptionID := os.Getenv("SUBSCRIPTION_ID")
 
 	client := azure.NewRestClient(subscriptionID)
 	return azure.NewUsageExplorer(client)
 }
 
-func initAwsClient() azure.UsageExplorer {
-	return azure.UsageExplorer{}
+func initAwsClient() dbclient.CloudCost {
+	return aws.NewClient{}
 }
