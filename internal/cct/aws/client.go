@@ -3,7 +3,6 @@ package aws
 
 import (
 	"encoding/csv"
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -88,65 +87,65 @@ func getTable(bucket string, key string, query string) [][]string {
 	return tbl
 }
 
-func s3ToUnix(timestamp string, form string) int {
-	tmp, err := time.Parse(form, timestamp)
-	if err != nil {
-		log.Fatal(err)
-	}
-	unix := strconv.FormatInt(tmp.Unix(), 10)
-	unixI, err := strconv.Atoi(unix)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return unixI
-}
+//func s3ToUnix(timestamp string, form string) int {
+//	tmp, err := time.Parse(form, timestamp)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	unix := strconv.FormatInt(tmp.Unix(), 10)
+//	unixI, err := strconv.Atoi(unix)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	return unixI
+//}
 
 // GetAccumulatedCost ...
-func GetAccumulatedCost(bucket string, key string, timestamp time.Time) []interface{} {
+//func GetAccumulatedCost(bucket string, key string, timestamp time.Time) []interface{} {
+//
+//	// Query to be used by S3 Select
+//	query := "SELECT s._11, s._12, s._13, s._24 FROM S3Object s"
+//
+//	// Get table from S3
+//	tbl := getTable(bucket, key, query)
+//
+//	// Define S3 timestamp format using Go reference time
+//	form := "2006-01-02T15:04:05Z"
+//	baz := strconv.FormatInt(timestamp.Unix(), 10)
+//
+//	// Transform
+//	for _, val := range tbl {
+//		a := s3ToUnix(val[0], form)
+//		b := s3ToUnix(val[1], form)
+//		x, _ := strconv.Atoi(baz)
+//		y := calculateOverlap(a, b, x)
+//		tmp, _ := strconv.ParseFloat(val[3], 64)
+//		val[3] = strconv.FormatFloat(tmp*y, 'f', -1, 64)
+//	}
+//
+//	// Group by service
+//	m := map[string]float64{}
+//	for _, val := range tbl {
+//		res, _ := strconv.ParseFloat(val[3], 64)
+//		m[val[2]] += res
+//	}
+//
+//	// Convert back to slice
+//	res := make([]interface{}, 0)
+//	for key, cost := range m {
+//		res = append(res, key)
+//		res = append(res, cost)
+//	}
+//
+//	return res
+//}
 
-	// Query to be used by S3 Select
-	query := "SELECT s._11, s._12, s._13, s._24 FROM S3Object s"
-
-	// Get table from S3
-	tbl := getTable(bucket, key, query)
-
-	// Define S3 timestamp format using Go reference time
-	form := "2006-01-02T15:04:05Z"
-	baz := strconv.FormatInt(timestamp.Unix(), 10)
-
-	// Transform
-	for _, val := range tbl {
-		a := s3ToUnix(val[0], form)
-		b := s3ToUnix(val[1], form)
-		x, _ := strconv.Atoi(baz)
-		y := calculateOverlap(a, b, x)
-		tmp, _ := strconv.ParseFloat(val[3], 64)
-		val[3] = strconv.FormatFloat(tmp*y, 'f', -1, 64)
-	}
-
-	// Group by service
-	m := map[string]float64{}
-	for _, val := range tbl {
-		res, _ := strconv.ParseFloat(val[3], 64)
-		m[val[2]] += res
-	}
-
-	// Convert back to slice
-	res := make([]interface{}, 0)
-	for key, cost := range m {
-		res = append(res, key)
-		res = append(res, cost)
-	}
-
-	return res
-}
-
-func calculateOverlap(a int, b int, x int) float64 {
-	y := (float64(x) - float64(a)) / (float64(b) - float64(a))
-	y = math.Max(y, 0.0)
-	y = math.Min(y, 1.0)
-	return y
-}
+//func calculateOverlap(a int, b int, x int) float64 {
+//	y := (float64(x) - float64(a)) / (float64(b) - float64(a))
+//	y = math.Max(y, 0.0)
+//	y = math.Min(y, 1.0)
+//	return y
+//}
 
 func overlap(a int64, b int64, c int64, d int64) float64 {
 	return math.Max(0, math.Min(float64(b), float64(d))-math.Max(float64(a), float64(c)))
@@ -156,7 +155,6 @@ func calculateRatio(start time.Time, stop time.Time, date time.Time) float64 {
 	newDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 	intersection := overlap(start.Unix(), stop.Unix(), newDate.Unix(), newDate.AddDate(0, 0, 1).Unix())
 	denominator := float64(stop.Unix() - start.Unix())
-	fmt.Println(intersection)
 	res := intersection / denominator
 	return res
 }
@@ -165,6 +163,8 @@ func calculateRatio(start time.Time, stop time.Time, date time.Time) float64 {
 func (client *Client) GetCloudCost(timestamp time.Time) []dbclient.UsageData {
 	// S3 Select: StartDate StopDate Service Currency BlendedCost
 	query := "SELECT s._11, s._12, s._13, s._20, s._24 FROM S3Object s"
+
+	form := "2006-01-02T15:04:05Z"
 
 	// Get table from bucket with key using query
 	tbl := getTable(client.bucket, client.key, query)
@@ -176,13 +176,15 @@ func (client *Client) GetCloudCost(timestamp time.Time) []dbclient.UsageData {
 		labels := map[string]string{}
 		labels["Service"] = val[2]
 		labels["Currency"] = val[3]
+		start, _ := time.Parse(form, val[0])
+		stop, _ := time.Parse(form, val[1])
+		ratio := calculateRatio(start, stop, timestamp)
 		cost, _ := strconv.ParseFloat(val[4], 64)
 		row := dbclient.UsageData{
-			Cost:   cost,
+			Cost:   cost * ratio,
 			Date:   timestamp,
 			Labels: labels}
 		res = append(res, row)
 	}
-
 	return res
 }
