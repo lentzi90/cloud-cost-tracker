@@ -3,6 +3,7 @@ package aws
 
 import (
 	"encoding/csv"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -11,6 +12,7 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -160,7 +162,7 @@ func calculateRatio(start time.Time, stop time.Time, date time.Time) float64 {
 }
 
 // GetCloudCost ...
-func (client *Client) GetCloudCost(timestamp time.Time) []dbclient.UsageData {
+func (client *Client) GetCloudCost(timestamp time.Time) ([]dbclient.UsageData, error) {
 	// S3 Select: StartDate StopDate Service Currency BlendedCost
 	query := "SELECT s._11, s._12, s._13, s._20, s._24 FROM S3Object s"
 
@@ -172,7 +174,6 @@ func (client *Client) GetCloudCost(timestamp time.Time) []dbclient.UsageData {
 	// Transform result into internal format []UsageData
 	res := make([]dbclient.UsageData, 0)
 	for _, val := range tbl {
-		_ = val
 		labels := map[string]string{}
 		labels["Service"] = val[2]
 		labels["Currency"] = val[3]
@@ -186,5 +187,43 @@ func (client *Client) GetCloudCost(timestamp time.Time) []dbclient.UsageData {
 			Labels: labels}
 		res = append(res, row)
 	}
-	return res
+	return res, nil
+}
+
+func keyIsValid(key string, date string) bool {
+	if !strings.Contains(key, date) {
+		return false
+	} else if !strings.Contains(key, "csv.gz") {
+		return false
+	}
+	return true
+}
+
+// GetBucketKey ...
+func GetBucketKey(bucket string, timestamp time.Time) string {
+	svc := newS3Service()
+	params := &s3.ListObjectsInput{
+		Bucket: aws.String(bucket),
+		Prefix: aws.String("daily-report/test-usage-report"),
+	}
+
+	start := time.Date(timestamp.Year(), timestamp.Month(), 1, 0, 0, 0, 0, timestamp.Location())
+	stop := start.AddDate(0, 1, 0)
+
+	// 20180701-20180801
+	form := "20060102"
+	foo := start.Format(form)
+	bar := stop.Format(form)
+	baz := foo + "-" + bar
+
+	resp, _ := svc.ListObjects(params)
+	for _, val := range resp.Contents {
+		if keyIsValid(*val.Key, baz) {
+			// val.Key
+			// val.LastModified
+			// fmt.Println(*val.LastModified)
+			fmt.Println(*val.Key)
+		}
+	}
+	return ""
 }
