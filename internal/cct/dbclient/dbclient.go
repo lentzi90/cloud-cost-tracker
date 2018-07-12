@@ -16,13 +16,13 @@ type UsageData struct {
 	Labels   map[string]string
 }
 
-// CloudCost TODO
-type CloudCost interface {
+// CloudCostClient The interface that all the cloudClients should implement
+type CloudCostClient interface {
 	GetCloudCost(time.Time) ([]UsageData, error)
 }
 
 // DBClientConfig Config struct with connection information of the influxDB
-type DBClientConfig struct {
+type Config struct {
 	DBName   string
 	Username string
 	Password string
@@ -79,12 +79,12 @@ func (e influxClient) NewPoint(name string, tags map[string]string, fields map[s
 
 // DBClient Can be used to add UsageData to a DB
 type DBClient struct {
-	config DBClientConfig
+	config Config
 	influxInterface
 }
 
 // NewDBClient initializes a DBClient
-func NewDBClient(config DBClientConfig) DBClient {
+func NewDBClient(config Config) DBClient {
 	return DBClient{
 		config:          config,
 		influxInterface: influxClient{},
@@ -92,7 +92,7 @@ func NewDBClient(config DBClientConfig) DBClient {
 }
 
 // GetConfig Returns the config
-func (e *DBClient) GetConfig() DBClientConfig {
+func (e *DBClient) GetConfig() Config {
 	return e.config
 }
 

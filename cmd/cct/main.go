@@ -20,10 +20,12 @@ var (
 	dbAddress  = flag.String("db-address", "http://localhost:8086", "The address to the database.")
 )
 
+// Struct to be able to use the interface from dbclient with Azure
 type azureCloudCost struct {
 	*azure.UsageExplorer
 }
 
+// Struct to be able to use the interface from dbclient with AWS
 type awsCloudCost struct {
 	*aws.Client
 }
@@ -33,54 +35,57 @@ func main() {
 
 	flag.Parse()
 
-	dbConfig := dbclient.DBClientConfig{
+	db := dbclient.NewDBClient(dbclient.Config{
 		DBName:   *dbName,
 		Username: *dbUsername,
 		Password: *dbPassword,
 		Address:  *dbAddress,
-	}
+	})
 
-	//var usageExplorer azure.UsageExplorer
-	var cloudCost dbclient.CloudCost
+	cloudCost := getCloudCostClient()
+	fetchDataForDate(db, cloudCost, time.Now())
+}
+
+// Fetches data from a CloudCostClient and adding it to the database
+func fetchDataForDate(db dbclient.DBClient, cloudCost dbclient.CloudCostClient, time time.Time) {
+	fmt.Println("Getting for period", time)
+	test, err := cloudCost.GetCloudCost(time)
+	if err == nil {
+		if err = db.AddUsageData(test); err != nil {
+			log.Fatalf("DB Error: %v", err.Error())
+		}
+
+	} else {
+		log.Println("Got error, skipping usage data:", err)
+	}
+}
+
+// Retrieves the correct CloudCostClient depending on the cloud flag
+func getCloudCostClient() dbclient.CloudCostClient {
+	var cloudCost dbclient.CloudCostClient
+
 	if strings.EqualFold(*cloud, "azure") {
 		log.Println("Initializing Azure client...")
 		azureClient := initAzureClient()
-		tmp := azureCloudCost{UsageExplorer: &azureClient}
-		cloudCost = &tmp
+		cloudCost = &azureCloudCost{UsageExplorer: &azureClient}
 	} else if strings.EqualFold(*cloud, "aws") {
 		log.Println("Initializing AWS client...")
 		awsClient := initAwsClient()
-		tmp := awsCloudCost{Client: &awsClient}
-		cloudCost = &tmp
+		cloudCost = &awsCloudCost{Client: &awsClient}
 	} else {
-		log.Fatalf("Cloud provider %v is not supported", *cloud)
+		log.Fatalf("Cloud provider \"%v\" is not supported", *cloud)
 	}
-
-	db := dbclient.NewDBClient(dbConfig)
-	now := time.Date(2018, time.July, 10, 0, 0, 0, 0, time.UTC)
-	for i := 0; i < 2; i++ {
-		fetchTime := now.AddDate(0, 0, -i)
-		fmt.Println("Getting for period", fetchTime)
-		test, err := cloudCost.GetCloudCost(fetchTime)
-		if err == nil {
-			if err = db.AddUsageData(test); err != nil {
-				log.Fatalf("DB Error: %v", err.Error())
-			}
-
-		} else {
-			log.Println("Got error, skipping usage data:", err)
-		}
-	}
-
-	log.Println("DONE!!!")
+	return cloudCost
 }
 
+// Initializes the Azure client
 func initAzureClient() azure.UsageExplorer {
 	client := azure.NewRestClient()
 	explorer := azure.NewUsageExplorer(client)
 	return explorer
 }
 
+// Initializes the AWS client
 func initAwsClient() aws.Client {
 	return aws.NewClient("elastisys-billing-data", "key")
 }
