@@ -75,11 +75,13 @@ func main() {
 	log.Println("DONE!!!")
 }
 
-func initAzureClient() dbclient.CloudCost {
+func initAzureClient() azure.UsageExplorer {
 	client := azure.NewRestClient()
-	return azure.NewUsageExplorer(client)
+	explorer := azure.NewUsageExplorer(client)
+	return explorer
 }
 
 func initAwsClient() aws.Client {
-	return aws.NewClient("elastisys-billing-data", "")
+	client := aws.NewClient("elastisys-billing-data", "key")
+	return client
 }
