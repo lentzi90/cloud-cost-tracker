@@ -24,14 +24,20 @@ func TestGetPeriodIterator(t *testing.T) {
 	mockBilling := NewMockbillingClient(mockCtrl)
 	mockConsumption := NewMockconsumptionClient(mockCtrl)
 	mockSubscription := NewMocksubscriptionClient(mockCtrl)
-	client := RestClient{mockBilling, mockConsumption, mockSubscription}
+
+	newSubscriptionsClient := func() subscriptionClient { return mockSubscription }
+	newPeriodsClient := func(string) billingClient { return mockBilling }
+	newUsageDetailsClient := func(string) consumptionClient { return mockConsumption }
+	client := RestClient{newSubscriptionsClient: newSubscriptionsClient, newPeriodsClient: newPeriodsClient, newUsageDetailsClient: newUsageDetailsClient}
+
+	subscriptionID := "abcdefgh-1234-1234-abcd-abcdefghijkl"
 
 	t.Run("Error from ListComplete", func(t *testing.T) {
 		err0 := errors.New("error")
 		expected := billing.PeriodsListResultIterator{}
 		mockBilling.EXPECT().ListComplete(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(expected, err0)
 
-		_, err := client.getPeriodIterator("")
+		_, err := client.getPeriodIterator(subscriptionID, "")
 
 		if err == nil {
 			t.Errorf("Expected error but got none!")
@@ -43,7 +49,7 @@ func TestGetPeriodIterator(t *testing.T) {
 		expected := billing.PeriodsListResultIterator{}
 		mockBilling.EXPECT().ListComplete(gomock.Any(), filter, gomock.Any(), gomock.Any()).Return(expected, nil)
 
-		actual, err := client.getPeriodIterator(filter)
+		actual, err := client.getPeriodIterator(subscriptionID, filter)
 		if err != nil {
 			t.Errorf("Caught error: %s", err)
 		}
@@ -60,8 +66,13 @@ func TestGetUsageIterator(t *testing.T) {
 	mockBilling := NewMockbillingClient(mockCtrl)
 	mockConsumption := NewMockconsumptionClient(mockCtrl)
 	mockSubscription := NewMocksubscriptionClient(mockCtrl)
-	client := RestClient{mockBilling, mockConsumption, mockSubscription}
 
+	newSubscriptionsClient := func() subscriptionClient { return mockSubscription }
+	newPeriodsClient := func(string) billingClient { return mockBilling }
+	newUsageDetailsClient := func(string) consumptionClient { return mockConsumption }
+	client := RestClient{newSubscriptionsClient: newSubscriptionsClient, newPeriodsClient: newPeriodsClient, newUsageDetailsClient: newUsageDetailsClient}
+
+	subscriptionID := "abcdefgh-1234-1234-abcd-abcdefghijkl"
 	billingPeriod := "201809-1"
 	filter := "filter"
 
@@ -70,7 +81,7 @@ func TestGetUsageIterator(t *testing.T) {
 		expected := consumption.UsageDetailsListResultIterator{}
 		mockConsumption.EXPECT().ListByBillingPeriodComplete(gomock.Any(), billingPeriod, gomock.Any(), filter, gomock.Any(), gomock.Any(), gomock.Any()).Return(expected, err0)
 
-		_, err := client.getUsageIterator(billingPeriod, filter)
+		_, err := client.getUsageIterator(subscriptionID, billingPeriod, filter)
 
 		if err == nil {
 			t.Errorf("Expected error but got none!")
@@ -81,7 +92,7 @@ func TestGetUsageIterator(t *testing.T) {
 		expected := consumption.UsageDetailsListResultIterator{}
 		mockConsumption.EXPECT().ListByBillingPeriodComplete(gomock.Any(), billingPeriod, gomock.Any(), filter, gomock.Any(), gomock.Any(), gomock.Any()).Return(expected, nil)
 
-		actual, err := client.getUsageIterator(billingPeriod, filter)
+		actual, err := client.getUsageIterator(subscriptionID, billingPeriod, filter)
 
 		if err != nil {
 			t.Errorf("Caught error: %s", err)
@@ -100,7 +111,11 @@ func TestGetSubscriptionIterator(t *testing.T) {
 	mockBilling := NewMockbillingClient(mockCtrl)
 	mockConsumption := NewMockconsumptionClient(mockCtrl)
 	mockSubscription := NewMocksubscriptionClient(mockCtrl)
-	client := RestClient{mockBilling, mockConsumption, mockSubscription}
+
+	newSubscriptionsClient := func() subscriptionClient { return mockSubscription }
+	newPeriodsClient := func(string) billingClient { return mockBilling }
+	newUsageDetailsClient := func(string) consumptionClient { return mockConsumption }
+	client := RestClient{newSubscriptionsClient: newSubscriptionsClient, newPeriodsClient: newPeriodsClient, newUsageDetailsClient: newUsageDetailsClient}
 
 	t.Run("Error from REST API", func(t *testing.T) {
 		err0 := errors.New("error")
