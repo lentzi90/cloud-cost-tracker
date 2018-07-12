@@ -25,11 +25,24 @@ logSuccess(){
     echo -e "\e[92mSuccess:\e[0m $1"
 }
 
+# Prepends a label to each new line with a specific color
+# first argument: The color code that the string should have, eg. \e[92m
+# second argument: The label to prepend
+prependString(){
+    { x=1; while IFS= read -d'' -s -N 1 char; do
+        [ $x ] && printf "$1$2:\e[0m "
+        printf "$char"
+        unset x
+        [ "$char" = "
+" ] && x=1 # Important that no this one starts at the beginning of the line (no tabs/spaces)
+    done; }
+}
+
 # stops the test
 # first argument: exit code the program should have
 # second argument: the message it should print
 stopTest(){
-    sudo ./teardownDB.sh 2>&1 | while read line; do echo -e "\e[95mdatabase:\e[0m $line"; done
+    sudo ./teardownDB.sh 2>&1 | prependString "\e[95m" "database"
     echo ""
     if [ $1 -eq 0 ]; then
         logSuccess "$2"
@@ -41,7 +54,7 @@ stopTest(){
 
 # Starts the DB and asserts that it's empty
 startDBAndCheckIfEmpty(){
-    sudo ./setupDB.sh 2>&1 | while read line; do echo -e "\e[95mdatabase:\e[0m $line"; done
+    sudo ./setupDB.sh 2>&1 | prependString "\e[95m" "database"
     logInfo "Waiting for database to start"
 
     # Wait for database to properly start
@@ -74,7 +87,7 @@ runTest(){
         --db-address http://$DATABASEHOST:$DATABASEPORT \
         --db-name $DATABASE \
         --db-username $DATABASEUSER --db-password $DATABASEPASSWORD 2>&1 | \
-        while read line; do echo -e "\e[93m$1:\e[0m $line"; done; goCode=${PIPESTATUS[0]}
+        prependString "\e[93m" "$1"; goCode=${PIPESTATUS[0]}
 
     logInfo "Program done."
     if [ $goCode -ne 0 ]; then
