@@ -29,7 +29,7 @@ logSuccess(){
 # first argument: exit code the program should have
 # second argument: the message it should print
 stopTest(){
-    sudo ./teardownDB.sh
+    sudo ./teardownDB.sh 2>&1 | while read line; do echo -e "\e[95mdatabase:\e[0m $line"; done
     echo ""
     if [ $1 -eq 0 ]; then
         logSuccess "$2"
@@ -41,7 +41,7 @@ stopTest(){
 
 # Starts the DB and asserts that it's empty
 startDBAndCheckIfEmpty(){
-    sudo ./setupDB.sh
+    sudo ./setupDB.sh 2>&1 | while read line; do echo -e "\e[95mdatabase:\e[0m $line"; done
     logInfo "Waiting for database to start"
 
     # Wait for database to properly start
@@ -69,7 +69,12 @@ startDBAndCheckIfEmpty(){
 runTest(){
     logInfo "Fetching data for $1"
     # Fetch Data
-    go run ../cmd/cct/main.go --cloud $1 --db-address http://$DATABASEHOST:$DATABASEPORT --db-name $DATABASE --db-username $DATABASEUSER --db-password $DATABASEPASSWORD
+    go run ../cmd/cct/main.go \
+        --cloud $1 \
+        --db-address http://$DATABASEHOST:$DATABASEPORT \
+        --db-name $DATABASE \
+        --db-username $DATABASEUSER --db-password $DATABASEPASSWORD 2>&1 | \
+        while read line; do echo -e "\e[93m$1:\e[0m $line"; done
     goCode=$?
     logInfo "Program done."
     if [ $goCode -ne 0 ]; then
