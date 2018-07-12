@@ -1,9 +1,12 @@
 #!/bin/bash
 
-# Required environment variables for Azure
-# AZURE_TENANT_ID
-# AZURE_CLIENT_ID
-# AZURE_CLIENT_SECRET
+# Assumes that:
+#   * aws cli configured
+#   * Environment variables for Azure set
+#     - AZURE_TENANT_ID
+#     - AZURE_CLIENT_ID
+#     - AZURE_CLIENT_SECRET
+#   * influxdb-client is installed
 
 DATABASEHOST="localhost"
 DATABASEPORT=8086
@@ -124,30 +127,3 @@ runTest "aws"
 logSuccess "Completed test for AWS"
 
 stopTest 0 "Test completed successfully!"
-
-
-#name: cost
-#time			        cloud	cost			currency	provider				service
-#----			        -----	----			--------	--------				-------
-#1507075200000000000	azure	0.1949901520896		SEK							Microsoft.Compute/disks
-#1507075200000000000		    0.6744044159999999	SEK		                    Microsoft.Network/publicIPAddresses
-#1507075200000000000	azure	12.4593326968176	SEK							Microsoft.Compute/virtualMachines
-#1507075200000000000		    0.1949901520896		SEK		                    Microsoft.Compute/disks
-#1507075200000000000		    12.4593326968176	SEK		                    Microsoft.Compute/virtualMachines
-#1507075200000000000	azure	0.6744044159999999	SEK							Microsoft.Network/publicIPAddresses
-#1507161600000000000		    12.4679808		    SEK		                    Microsoft.Compute/virtualMachines
-#1507161600000000000	azure	0.6772380479999999	SEK							Microsoft.Network/publicIPAddresses
-#1507161600000000000		    .6772380479999999	SEK		                    Microsoft.Network/publicIPAddresses
-#1507161600000000000	azure	0.1949901520896		SEK							Microsoft.Compute/disks
-#1507161600000000000		    0.1949901520896		SEK		                    Microsoft.Compute/disks
-#1507161600000000000	azure	12.4679808		S   EK							Microsoft.Compute/virtualMachines
-
-#name: cost
-#time			cloud	cost			currency	service
-#----			-----	----			--------	-------
-#1507075200000000000	azure	0.1949901520896		SEK		Microsoft.Compute/disks
-#1507075200000000000	azure	0.6744044159999999	SEK		Microsoft.Network/publicIPAddresses
-#1507075200000000000	azure	12.4593326968176	SEK		Microsoft.Compute/virtualMachines
-#1507161600000000000	azure	0.6772380479999999	SEK		Microsoft.Network/publicIPAddresses
-#1507161600000000000	azure	12.4679808		SEK		Microsoft.Compute/virtualMachines
-#1507161600000000000	azure	0.1949901520896		SEK		Microsoft.Compute/disks
