@@ -18,7 +18,7 @@ type UsageData struct {
 
 // CloudCost TODO
 type CloudCost interface {
-	GetCloudCost(timestamp time.Time) ([]UsageData, error)
+	GetCloudCost(time.Time) ([]UsageData, error)
 }
 
 // DBClientConfig Config struct with connection information of the influxDB

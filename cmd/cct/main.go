@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -21,8 +20,12 @@ var (
 	dbAddress  = flag.String("db-address", "http://localhost:8086", "The address to the database.")
 )
 
-func init() {
-	log.SetOutput(os.Stderr)
+type azureCloudCost struct {
+	*azure.UsageExplorer
+}
+
+type awsCloudCost struct {
+	*aws.Client
 }
 
 func main() {
@@ -38,13 +41,17 @@ func main() {
 	}
 
 	//var usageExplorer azure.UsageExplorer
-	var usageExplorer dbclient.CloudCost
+	var cloudCost dbclient.CloudCost
 	if strings.EqualFold(*cloud, "azure") {
 		log.Println("Initializing Azure client...")
-		usageExplorer = initAzureClient()
+		azureClient := initAzureClient()
+		tmp := azureCloudCost{UsageExplorer: &azureClient}
+		cloudCost = &tmp
 	} else if strings.EqualFold(*cloud, "aws") {
 		log.Println("Initializing AWS client...")
-		usageExplorer = initAwsClient()
+		awsClient := initAwsClient()
+		tmp := awsCloudCost{Client: &awsClient}
+		cloudCost = &tmp
 	} else {
 		log.Fatalf("Cloud provider %v is not supported", *cloud)
 	}
@@ -54,7 +61,7 @@ func main() {
 	for i := 0; i < 2; i++ {
 		fetchTime := now.AddDate(0, 0, -i)
 		fmt.Println("Getting for period", fetchTime)
-		test, err := usageExplorer.GetCloudCost(fetchTime)
+		test, err := cloudCost.GetCloudCost(fetchTime)
 		if err == nil {
 			if err = db.AddUsageData(test); err != nil {
 				log.Fatalf("DB Error: %v", err.Error())
@@ -73,6 +80,6 @@ func initAzureClient() dbclient.CloudCost {
 	return azure.NewUsageExplorer(client)
 }
 
-func initAwsClient() dbclient.CloudCost {
-	return aws.NewClient{}
+func initAwsClient() aws.Client {
+	return aws.NewClient("elastisys-billing-data", "")
 }
