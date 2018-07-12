@@ -3,6 +3,7 @@ package aws
 
 import (
 	"encoding/csv"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -100,13 +101,6 @@ func s3ToUnix(timestamp string, form string) int {
 	return unixI
 }
 
-func calculateOverlap(a int, b int, x int) float64 {
-	y := (float64(x) - float64(a)) / (float64(b) - float64(a))
-	y = math.Max(y, 0.0)
-	y = math.Min(y, 1.0)
-	return y
-}
-
 // GetAccumulatedCost ...
 func GetAccumulatedCost(bucket string, key string, timestamp time.Time) []interface{} {
 
@@ -147,13 +141,29 @@ func GetAccumulatedCost(bucket string, key string, timestamp time.Time) []interf
 	return res
 }
 
-func calculateRatio() {
+func calculateOverlap(a int, b int, x int) float64 {
+	y := (float64(x) - float64(a)) / (float64(b) - float64(a))
+	y = math.Max(y, 0.0)
+	y = math.Min(y, 1.0)
+	return y
+}
+
+func overlap(a int64, b int64, c int64, d int64) float64 {
+	return math.Max(0, math.Min(float64(b), float64(d))-math.Max(float64(a), float64(c)))
+}
+
+func calculateRatio(start time.Time, stop time.Time, date time.Time) float64 {
+	newDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	intersection := overlap(start.Unix(), stop.Unix(), newDate.Unix(), newDate.AddDate(0, 0, 1).Unix())
+	denominator := float64(stop.Unix() - start.Unix())
+	fmt.Println(intersection)
+	res := intersection / denominator
+	return res
 }
 
 // GetCloudCost ...
 func (client *Client) GetCloudCost(timestamp time.Time) []dbclient.UsageData {
-	// S3 Select query
-	// StartDate StopDate Service Currency BlendedCost
+	// S3 Select: StartDate StopDate Service Currency BlendedCost
 	query := "SELECT s._11, s._12, s._13, s._20, s._24 FROM S3Object s"
 
 	// Get table from bucket with key using query
@@ -166,8 +176,9 @@ func (client *Client) GetCloudCost(timestamp time.Time) []dbclient.UsageData {
 		labels := map[string]string{}
 		labels["Service"] = val[2]
 		labels["Currency"] = val[3]
+		cost, _ := strconv.ParseFloat(val[4], 64)
 		row := dbclient.UsageData{
-			Cost:   0.0,
+			Cost:   cost,
 			Date:   timestamp,
 			Labels: labels}
 		res = append(res, row)
