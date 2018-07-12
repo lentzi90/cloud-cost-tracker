@@ -25,39 +25,20 @@ func NewUsageExplorer(client Client) UsageExplorer {
 
 // GetCloudCost fetches the cost for the specified date
 func (e *UsageExplorer) GetCloudCost(date time.Time) ([]dbclient.UsageData, error) {
+	log.Println("azure: Getting cost for", date)
 	var data []dbclient.UsageData
-	usageIter, err := e.getUsageByDate(date)
+	subscriptions, err := e.getSubscriptions()
 	if err != nil {
 		return data, err
 	}
-	providers := make(map[string]decimal.Decimal)
-
-	for usageIter.NotDone() {
-		usageDetails := usageIter.Value()
-		usageIter.Next()
-		// Check that these fields actually exist!
-		if (usageDetails.UsageDetailProperties == nil) ||
-			(usageDetails.UsageStart == nil) ||
-			(usageDetails.PretaxCost == nil) ||
-			(usageDetails.Currency == nil) ||
-			(usageDetails.InstanceID == nil) {
-			continue
+	for _, sub := range subscriptions {
+		subCost, err := e.getSubscriptionCost(sub, date)
+		if err == nil {
+			data = append(data, subCost...)
+		} else {
+			log.Println("Unable to get cost for subscription", sub, err)
+			return data, err
 		}
-		instanceID := *usageDetails.InstanceID
-		pretaxCost := *usageDetails.PretaxCost
-		currency := *usageDetails.Currency
-		usageStart := *usageDetails.UsageStart
-
-		resourceProvider := getProvider(instanceID)
-		providers[resourceProvider] = decimal.Sum(providers[resourceProvider], pretaxCost)
-		log.Printf("%s %s, %s, %s\n", pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), resourceProvider)
-
-		labels := make(map[string]string)
-		labels["service"] = resourceProvider
-		labels["cloud"] = "azure"
-		labels["currency"] = currency
-		cost, _ := pretaxCost.Float64()
-		data = append(data, dbclient.UsageData{Cost: cost, Currency: currency, Date: date, Labels: labels})
 	}
 
 	return data, nil
@@ -67,7 +48,7 @@ func (e *UsageExplorer) getPeriodByDate(date time.Time) (billing.Period, error) 
 	dateStr := date.Format("2006-01-02")
 	filter := "billingPeriodEndDate gt " + dateStr
 
-	periods, err := e.client.getPeriodIterator(filter)
+	periods, err := e.client.getPeriodIterator("blabla", filter)
 	if err != nil {
 		return billing.Period{}, err
 	}
@@ -85,13 +66,69 @@ func (e *UsageExplorer) getUsageByDate(date time.Time) (usageIterator, error) {
 	filter := fmt.Sprintf("properties/usageStart eq '%s'", date.Format("2006-01-02"))
 	log.Println("Trying to get usage for billing period", billingPeriodName)
 
-	result, err := e.client.getUsageIterator(billingPeriodName, filter)
+	result, err := e.client.getUsageIterator("blabla", billingPeriodName, filter)
 	if err != nil {
 		return &consumption.UsageDetailsListResultIterator{}, err
 	}
 	log.Println("Success!")
 
 	return result, nil
+}
+
+func (e *UsageExplorer) getSubscriptions() ([]string, error) {
+	result := []string{}
+	subIter, err := e.client.getSubscriptionIterator()
+	if err != nil {
+		return result, err
+	}
+
+	for subIter.NotDone() {
+		sub := subIter.Value()
+		if sub.ID == nil {
+			continue
+		}
+		log.Println("Found subscription:", *sub.ID)
+		result = append(result, *sub.ID)
+	}
+
+	return result, err
+}
+
+func (e *UsageExplorer) getSubscriptionCost(subscriptionID string, date time.Time) ([]dbclient.UsageData, error) {
+	var data []dbclient.UsageData
+	usageIter, err := e.getUsageByDate(date)
+	if err != nil {
+		return data, err
+	}
+	providers := make(map[string]decimal.Decimal)
+
+	for usageIter.NotDone() {
+		usageDetails := usageIter.Value()
+		usageIter.Next()
+		// Check that fields actually exist!
+		if !propertiesOK(usageDetails) {
+			continue
+		}
+
+		instanceID := *usageDetails.InstanceID
+		pretaxCost := *usageDetails.PretaxCost
+		currency := *usageDetails.Currency
+		usageStart := *usageDetails.UsageStart
+
+		resourceProvider := getProvider(instanceID)
+		providers[resourceProvider] = decimal.Sum(providers[resourceProvider], pretaxCost)
+		log.Printf("%s %s, %s, %s\n", pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), resourceProvider)
+
+		labels := make(map[string]string)
+		labels["service"] = resourceProvider
+		labels["cloud"] = "azure"
+		labels["currency"] = currency
+		cost, _ := pretaxCost.Float64()
+
+		data = append(data, dbclient.UsageData{Cost: cost, Currency: currency, Date: date, Labels: labels})
+	}
+
+	return data, nil
 }
 
 func getProvider(instanceID string) string {
@@ -101,4 +138,15 @@ func getProvider(instanceID string) string {
 	// We extract the provider by splitting on /
 	parts := strings.Split(instanceID, "/")
 	return strings.Join(parts[6:8], "/")
+}
+
+func propertiesOK(usageDetails consumption.UsageDetail) bool {
+	if (usageDetails.UsageDetailProperties == nil) ||
+		(usageDetails.UsageStart == nil) ||
+		(usageDetails.PretaxCost == nil) ||
+		(usageDetails.Currency == nil) ||
+		(usageDetails.InstanceID == nil) {
+		return false
+	}
+	return true
 }
