@@ -46,6 +46,22 @@ func main() {
 	fetchDataForDate(db, cloudCost, time.Now())
 }
 
+// Fetches data from a CloudCostClient for an interval and adding it to the database
+func fetchDataForInterval(db dbclient.DBClient, cloudCost dbclient.CloudCostClient, startDate time.Time, stopDate time.Time) {
+	if startDate.After(stopDate) {
+		log.Fatalf("Fetch for interval: start date can't be after stop date")
+	}
+
+	currentTime := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, startDate.Location())
+	// Make sure stop date will be included
+	stopDate = time.Date(stopDate.Year(), stopDate.Month(), stopDate.Day(), 0, 0, 0, 1, stopDate.Location())
+
+	for currentTime.Before(stopDate) {
+		fetchDataForDate(db, cloudCost, currentTime)
+		currentTime = currentTime.AddDate(0, 0, 1)
+	}
+}
+
 // Fetches data from a CloudCostClient and adding it to the database
 func fetchDataForDate(db dbclient.DBClient, cloudCost dbclient.CloudCostClient, time time.Time) {
 	fmt.Println("Getting for period", time)
