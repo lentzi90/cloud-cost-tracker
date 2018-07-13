@@ -35,7 +35,7 @@ func TestGetCloudCost(t *testing.T) {
 	mockPeriodsIter := NewMockperiodsIterator(mockCtrl)
 	mockUsageIter := NewMockusageIterator(mockCtrl)
 	mockClient := NewMockClient(mockCtrl)
-	ue := NewUsageExplorer(mockClient)
+	ue := UsageExplorer{client: mockClient}
 
 	// Test data
 	id := "id"

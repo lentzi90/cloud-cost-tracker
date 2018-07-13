@@ -18,8 +18,8 @@ type UsageExplorer struct {
 }
 
 // NewUsageExplorer initializes a UsageExplorer
-func NewUsageExplorer(client Client) UsageExplorer {
-	return UsageExplorer{client: client}
+func NewUsageExplorer() UsageExplorer {
+	return UsageExplorer{client: NewRestClient()}
 }
 
 // GetCloudCost fetches the cost for the specified date

@@ -95,8 +95,7 @@ func getCloudCostClient() dbclient.CloudCostClient {
 
 // Initializes the Azure client
 func initAzureClient() azure.UsageExplorer {
-	client := azure.NewRestClient()
-	explorer := azure.NewUsageExplorer(client)
+	explorer := azure.NewUsageExplorer()
 	return explorer
 }
 
