@@ -1,4 +1,4 @@
-// Package aws ...
+// Package aws is responsible for fetching information about aws billing
 package aws
 
 import (
@@ -8,21 +8,22 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/lentzi90/cloud-cost-tracker/internal/cct/dbclient"
 	"io"
-	"log"
 	"math"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// Client ...
+// Client represents a connection to an aws S3 bucket
 type Client struct {
-	bucket string
+	bucket  string
+	service *s3.S3
 }
 
-// NewClient ...
+// NewClient initializes a new S3 connection
 func NewClient(bucket string) Client {
-	client := Client{bucket: bucket}
+	svc := newS3Service()
+	client := Client{bucket: bucket, service: svc}
 	return client
 }
 
@@ -33,13 +34,11 @@ func newS3Service() *s3.S3 {
 	return s3.New(sess)
 }
 
-func getTable(bucket string, key string, query string) [][]string {
-
-	svc := newS3Service()
+func (client *Client) getTable(key string, query string) ([][]string, error) {
 
 	// Select contents of target csv
 	params := &s3.SelectObjectContentInput{
-		Bucket:         aws.String(bucket),
+		Bucket:         aws.String(client.bucket),
 		Key:            aws.String(key),
 		ExpressionType: aws.String(s3.ExpressionTypeSql),
 		Expression:     aws.String(query),
@@ -55,9 +54,9 @@ func getTable(bucket string, key string, query string) [][]string {
 	}
 
 	// Request stream
-	resp, err := svc.SelectObjectContent(params)
+	resp, err := client.service.SelectObjectContent(params)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer resp.EventStream.Close()
 
@@ -84,7 +83,7 @@ func getTable(bucket string, key string, query string) [][]string {
 		tbl = append(tbl, record)
 	}
 
-	return tbl
+	return tbl, nil
 }
 
 func overlap(a int64, b int64, c int64, d int64) float64 {
@@ -93,36 +92,42 @@ func overlap(a int64, b int64, c int64, d int64) float64 {
 
 func calculateRatio(start time.Time, stop time.Time, date time.Time) float64 {
 	newDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-	intersection := overlap(start.Unix(), stop.Unix(), newDate.Unix(), newDate.AddDate(0, 0, 1).Unix())
+	nominator := overlap(start.Unix(), stop.Unix(), newDate.Unix(), newDate.AddDate(0, 0, 1).Unix())
 	denominator := float64(stop.Unix() - start.Unix())
-	res := intersection / denominator
+	res := nominator / denominator
 	return res
 }
 
-// GetCloudCost ...
+// GetCloudCost returns information about the cost during a specific day
 func (client *Client) GetCloudCost(timestamp time.Time) ([]dbclient.UsageData, error) {
-	// S3 Select: StartDate StopDate Service Currency BlendedCost
-	query := "SELECT s._11, s._12, s._13, s._20, s._24 FROM S3Object s"
+	// S3 Select
+	// 0  1         2        3       4        5
+	// id StartDate StopDate Service Currency BlendedCost
+	query := "SELECT s._1, s._11, s._12, s._13, s._20, s._24 FROM S3Object s"
 
 	form := "2006-01-02T15:04:05Z"
 
 	// Calculate the correct key
-	key := getBucketKey(client.bucket, timestamp)
+	key := client.getBucketKey(timestamp)
 
 	// Get table from bucket with key using query
-	tbl := getTable(client.bucket, key, query)
+	tbl, err := client.getTable(key, query)
+	if err != nil {
+		return nil, err
+	}
 
 	// Transform result into internal format []UsageData
 	res := make([]dbclient.UsageData, 0)
 	for _, val := range tbl {
 		labels := map[string]string{}
-		labels["service"] = val[2]
-		labels["currency"] = val[3]
+		labels["id"] = val[0]
+		labels["service"] = val[3]
+		labels["currency"] = val[4]
 		labels["cloud"] = "aws"
-		start, _ := time.Parse(form, val[0])
-		stop, _ := time.Parse(form, val[1])
+		start, _ := time.Parse(form, val[1])
+		stop, _ := time.Parse(form, val[2])
 		ratio := calculateRatio(start, stop, timestamp)
-		cost, _ := strconv.ParseFloat(val[4], 64)
+		cost, _ := strconv.ParseFloat(val[5], 64)
 		row := dbclient.UsageData{
 			Cost:   cost * ratio,
 			Date:   timestamp,
@@ -166,21 +171,18 @@ func selectKey(objects []*s3.Object, date string) string {
 	return key
 }
 
-func getBucketKey(bucket string, timestamp time.Time) string {
-	svc := newS3Service()
+func (client *Client) getBucketKey(timestamp time.Time) string {
 	params := &s3.ListObjectsInput{
-		Bucket: aws.String(bucket),
+		Bucket: aws.String(client.bucket),
 		Prefix: aws.String("daily-report/test-usage-report"),
 	}
 
+	form := "20060102"
 	start := time.Date(timestamp.Year(), timestamp.Month(), 1, 0, 0, 0, 0, timestamp.Location())
 	stop := start.AddDate(0, 1, 0)
-
-	form := "20060102"
 	date := start.Format(form) + "-" + stop.Format(form)
 
-	resp, _ := svc.ListObjects(params)
-
+	resp, _ := client.service.ListObjects(params)
 	key := selectKey(resp.Contents, date)
 
 	return key
