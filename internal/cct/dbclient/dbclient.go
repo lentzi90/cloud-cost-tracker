@@ -10,10 +10,9 @@ import (
 
 // UsageData Struct that the submodules should return
 type UsageData struct {
-	Cost     float64
-	Currency string
-	Date     time.Time
-	Labels   map[string]string
+	Cost   float64
+	Date   time.Time
+	Labels map[string]string
 }
 
 // CloudCostClient The interface that all the cloudClients should implement
@@ -144,18 +143,8 @@ func (e *DBClient) createBatchPoints(data UsageData) (bp, error) {
 	// Convert decimal to float and add as field
 	cost := map[string]interface{}{"cost": data.Cost}
 
-	// Merge currency into label map
-	labels := map[string]string{}
-
-	if data.Labels != nil {
-		data.Labels["currency"] = data.Currency
-		labels = data.Labels
-	} else {
-		labels["currency"] = data.Currency
-	}
-
 	// Create and add point
-	pt, err := e.influxInterface.NewPoint("cost", labels, cost, data.Date)
+	pt, err := e.influxInterface.NewPoint("cost", data.Labels, cost, data.Date)
 	if err != nil {
 		return nil, err
 	}
