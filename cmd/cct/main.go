@@ -47,7 +47,7 @@ func main() {
 	fetchDataForDate(db, cloudCost, time.Now())
 	stopTime := time.Now()
 
-	fmt.Println("Done! Fetched the data in", stopTime.Sub(startTime))
+	log.Println("Done! Fetched the data in", stopTime.Sub(startTime))
 }
 
 // Fetches data from a CloudCostClient for an interval and adding it to the database
