@@ -24,7 +24,6 @@ func NewUsageExplorer(client Client) UsageExplorer {
 
 // GetCloudCost fetches the cost for the specified date
 func (e *UsageExplorer) GetCloudCost(date time.Time) ([]dbclient.UsageData, error) {
-	log.Println("azure: Getting cost for", date)
 	var data []dbclient.UsageData
 	subscriptions, err := e.getSubscriptions()
 	if err != nil {
@@ -35,7 +34,7 @@ func (e *UsageExplorer) GetCloudCost(date time.Time) ([]dbclient.UsageData, erro
 		if err == nil {
 			data = append(data, subCost...)
 		} else {
-			log.Println("Unable to get cost for subscription", sub, err)
+			log.Println("Warning: Unable to get cost for subscription", sub, err)
 			return data, err
 		}
 	}
@@ -69,7 +68,6 @@ func (e *UsageExplorer) getUsageByDate(subscriptionID string, date time.Time) (u
 	if err != nil {
 		return &consumption.UsageDetailsListResultIterator{}, err
 	}
-	log.Println("Success!")
 
 	return result, nil
 }
@@ -115,7 +113,7 @@ func (e *UsageExplorer) getSubscriptionCost(subscriptionID string, date time.Tim
 		usageStart := *usageDetails.UsageStart
 
 		labels := getLabels(instanceID, currency)
-		log.Printf("%s %s, %s, %s\n", pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), instanceID)
+		log.Println(pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), labels)
 
 		cost, _ := pretaxCost.Float64()
 
@@ -133,6 +131,8 @@ func getLabels(instanceID, currency string) map[string]string {
 	parts := strings.Split(instanceID, "/")
 	labels := make(map[string]string)
 	labels["cloud"] = "azure"
+	labels["subscription"] = parts[2]
+	labels["resource_group"] = parts[4]
 	labels["service"] = strings.Join(parts[6:8], "/")
 	labels["currency"] = currency
 	labels["instance"] = parts[8]

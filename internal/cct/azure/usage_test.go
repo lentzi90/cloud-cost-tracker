@@ -41,15 +41,16 @@ func TestGetCloudCost(t *testing.T) {
 	id := "id"
 	name := "name"
 	period := billing.Period{ID: &id, Name: &name}
+	resourceGroup := "elastisys-container-registry"
 	provider := "Microsoft.ContainerRegistry/registries"
 	instance := "elastisys"
-	instanceID := "/subscriptions/" + subscriptionID + "/resourceGroups/elastisys-container-registry/providers/" + provider + "/" + instance
+	instanceID := "/subscriptions/" + subscriptionID + "/resourceGroups/" + resourceGroup + "/providers/" + provider + "/" + instance
 	cost := 10.50
 	currency := "SEK"
 	usageDate := time.Date(2018, time.July, 3, 00, 0, 0, 0, time.UTC)
 	usage := fakeUsageDetail(usageDate, cost, currency, instanceID)
 	usageSlice := []consumption.UsageDetail{usage}
-	labels := map[string]string{"cloud": "azure", "service": provider, "instance": instance, "currency": currency}
+	labels := map[string]string{"cloud": "azure", "subscription": subscriptionID, "resource_group": resourceGroup, "service": provider, "instance": instance, "currency": currency}
 	data := dbclient.UsageData{Cost: cost, Date: usageDate, Labels: labels}
 
 	subscriptions := []subscription.Model{subscription.Model{SubscriptionID: &subscriptionID}}

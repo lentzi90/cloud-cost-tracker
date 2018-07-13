@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -31,7 +30,7 @@ type awsCloudCost struct {
 }
 
 func main() {
-	fmt.Println("Welcome to Cloud Cost Tracker V1.0.5")
+	log.Println("Cloud Cost Tracker starting")
 
 	flag.Parse()
 
@@ -64,7 +63,7 @@ func fetchDataForInterval(db dbclient.DBClient, cloudCost dbclient.CloudCostClie
 
 // Fetches data from a CloudCostClient and adding it to the database
 func fetchDataForDate(db dbclient.DBClient, cloudCost dbclient.CloudCostClient, time time.Time) {
-	fmt.Println("Getting for period", time)
+	log.Println("Getting cost for", time)
 	test, err := cloudCost.GetCloudCost(time)
 	if err == nil {
 		if err = db.AddUsageData(test); err != nil {
