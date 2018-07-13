@@ -10,7 +10,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/services/consumption/mgmt/2018-05-31/consumption"
 	"github.com/Azure/azure-sdk-for-go/services/preview/billing/mgmt/2018-03-01-preview/billing"
-	"github.com/shopspring/decimal"
 )
 
 // A UsageExplorer can be used to investigate usage cost
@@ -101,7 +100,6 @@ func (e *UsageExplorer) getSubscriptionCost(subscriptionID string, date time.Tim
 	if err != nil {
 		return data, err
 	}
-	providers := make(map[string]decimal.Decimal)
 
 	for usageIter.NotDone() {
 		usageDetails := usageIter.Value()
@@ -116,29 +114,29 @@ func (e *UsageExplorer) getSubscriptionCost(subscriptionID string, date time.Tim
 		currency := *usageDetails.Currency
 		usageStart := *usageDetails.UsageStart
 
-		resourceProvider := getProvider(instanceID)
-		providers[resourceProvider] = decimal.Sum(providers[resourceProvider], pretaxCost)
-		log.Printf("%s %s, %s, %s\n", pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), resourceProvider)
+		labels := getLabels(instanceID, currency)
+		log.Printf("%s %s, %s, %s\n", pretaxCost, currency, usageStart.Format("2006-01-02 15:04"), instanceID)
 
-		labels := make(map[string]string)
-		labels["service"] = resourceProvider
-		labels["cloud"] = "azure"
-		labels["currency"] = currency
 		cost, _ := pretaxCost.Float64()
 
-		data = append(data, dbclient.UsageData{Cost: cost, Currency: currency, Date: date, Labels: labels})
+		data = append(data, dbclient.UsageData{Cost: cost, Date: date, Labels: labels})
 	}
 
 	return data, nil
 }
 
-func getProvider(instanceID string) string {
+func getLabels(instanceID, currency string) map[string]string {
 	// The instance ID is a string like this:
 	// /subscriptions/{guid}/resourceGroups/{resource-group-name}/{resource-provider-namespace}/{resource-type}/{subtype}/{resource-name}
 	// See: https://docs.microsoft.com/en-us/rest/api/resources/resources/getbyid
 	// We extract the provider by splitting on /
 	parts := strings.Split(instanceID, "/")
-	return strings.Join(parts[6:8], "/")
+	labels := make(map[string]string)
+	labels["cloud"] = "azure"
+	labels["service"] = strings.Join(parts[6:8], "/")
+	labels["currency"] = currency
+	labels["instance"] = parts[8]
+	return labels
 }
 
 func propertiesOK(usageDetails consumption.UsageDetail) bool {

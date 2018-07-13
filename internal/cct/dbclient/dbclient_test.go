@@ -17,28 +17,27 @@ var (
 		Address:  "TestAddress",
 	}
 	usageData1 = UsageData{
-		Cost:     111,
-		Currency: "SEK",
-		Date:     time.Date(2001, time.January, 1, 1, 1, 1, 1, time.UTC),
+		Cost: 111,
+		Date: time.Date(2001, time.January, 1, 1, 1, 1, 1, time.UTC),
 		Labels: map[string]string{
-			"l1": "test1",
-			"l2": "test2",
+			"l1":       "test1",
+			"l2":       "test2",
+			"currency": "SEK",
 		},
 	}
 	usageData2 = UsageData{
-		Cost:     222,
-		Currency: "USD",
-		Date:     time.Date(2002, time.February, 2, 2, 2, 2, 2, time.UTC),
+		Cost: 222,
+		Date: time.Date(2002, time.February, 2, 2, 2, 2, 2, time.UTC),
 		Labels: map[string]string{
-			"l3": "test3",
-			"l4": "test4",
+			"l3":       "test3",
+			"l4":       "test4",
+			"currency": "USD",
 		},
 	}
 	usageData3 = UsageData{
-		Cost:     333,
-		Currency: "USD",
-		Date:     time.Date(2003, time.March, 3, 3, 3, 3, 3, time.UTC),
-		Labels:   nil,
+		Cost:   333,
+		Date:   time.Date(2003, time.March, 3, 3, 3, 3, 3, time.UTC),
+		Labels: map[string]string{"currency": "USD"},
 	}
 	usageDataArray = []UsageData{usageData1, usageData2, usageData3}
 )
@@ -86,14 +85,14 @@ func TestAddUsageData(t *testing.T) {
 
 	expectedFields1 := map[string]interface{}{"cost": usageData1.Cost}
 	expectedLabels1 := usageData1.Labels
-	expectedLabels1["currency"] = usageData1.Currency
+	expectedLabels1["currency"] = usageData1.Labels["currency"]
 
 	expectedFields2 := map[string]interface{}{"cost": usageData2.Cost}
 	expectedLabels2 := usageData2.Labels
-	expectedLabels2["currency"] = usageData2.Currency
+	expectedLabels2["currency"] = usageData2.Labels["currency"]
 
 	expectedFields3 := map[string]interface{}{"cost": usageData3.Cost}
-	expectedLabels3 := map[string]string{"currency": usageData3.Currency}
+	expectedLabels3 := map[string]string{"currency": usageData3.Labels["currency"]}
 
 	// Mocked NewPoint that will return the mocked Point
 	mockinfluxInterface.EXPECT().NewPoint("cost", expectedLabels1, expectedFields1, usageData1.Date).
