@@ -87,5 +87,5 @@ func initAzureClient() azure.UsageExplorer {
 
 // Initializes the AWS client
 func initAwsClient() aws.Client {
-	return aws.NewClient("elastisys-billing-data", "key")
+	return aws.NewClient("elastisys-billing-data")
 }

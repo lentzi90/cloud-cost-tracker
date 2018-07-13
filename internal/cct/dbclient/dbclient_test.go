@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	dbConfig = DBClientConfig{
+	dbConfig = Config{
 		DBName:   "TestDB",
 		Username: "testUser",
 		Password: "testPassword",
