@@ -34,7 +34,8 @@ logSuccess(){
 prependString(){
     { x=1; while IFS= read -d'' -s -N 1 char; do
         [ $x ] && printf "$1$2:\e[0m "
-        printf "$char"
+        [ "$char" = "%" ] && printf "%%"
+        [ "$char" != "%" ] && printf "$char"
         unset x
         [ "$char" = "
 " ] && x=1 # Important that no this one starts at the beginning of the line (no tabs/spaces)
