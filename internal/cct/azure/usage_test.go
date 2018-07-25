@@ -54,10 +54,10 @@ var (
 
 // Faked data from API
 var (
-	singleSubscription = []subscription.Model{subscription.Model{SubscriptionID: &subscriptionID}}
-	multiSubscription  = []subscription.Model{subscription.Model{SubscriptionID: &subscriptionID}, subscription.Model{SubscriptionID: &subscriptionID2}}
-	singlePeriod       = []billing.Period{billing.Period{ID: &periodID, Name: &periodName}}
-	multiPeriod        = []billing.Period{billing.Period{ID: &periodID, Name: &periodName}}
+	singleSubscription = []subscription.Model{{SubscriptionID: &subscriptionID}}
+	multiSubscription  = []subscription.Model{{SubscriptionID: &subscriptionID}, {SubscriptionID: &subscriptionID2}}
+	singlePeriod       = []billing.Period{{ID: &periodID, Name: &periodName}}
+	multiPeriod        = []billing.Period{{ID: &periodID, Name: &periodName}}
 	usageDetail        = fakeUsageDetail(usageDate, cost, currency, instanceID)
 	usageDetail2       = fakeUsageDetail(usageDate, cost, currency2, instanceID2)
 	usageSlice         = []consumption.UsageDetail{usageDetail}
