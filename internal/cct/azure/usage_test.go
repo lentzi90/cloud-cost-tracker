@@ -63,6 +63,7 @@ var (
 	cloudCost2 = []dbclient.UsageData{usageData, usageData2}
 	// A single subscription with two instances from two different providers
 	cloudCost3 = []dbclient.UsageData{usageData, usageData3}
+	emptyCost  = []dbclient.UsageData{}
 )
 
 // Faked data from API
@@ -72,20 +73,21 @@ var (
 	usageDetail   = fakeUsageDetail(usageDate, cost, currency, instanceID)
 	usageDetail2  = fakeUsageDetail(usageDate, cost, currency2, instanceID2)
 	usageDetail3  = fakeUsageDetail(usageDate, cost, currency, instanceID3)
-	usageSlice    = []consumption.UsageDetail{usageDetail}
-	usageSlice2   = []consumption.UsageDetail{usageDetail, usageDetail2}
-	usageSlice3   = []consumption.UsageDetail{usageDetail, usageDetail3}
+	// Properties are missing
+	partialUsageDetail = consumption.UsageDetail{ID: &periodID, Name: &periodName, UsageDetailProperties: nil}
+	usageSlice         = []consumption.UsageDetail{usageDetail}
+	usageSlice2        = []consumption.UsageDetail{usageDetail, usageDetail2}
+	usageSlice3        = []consumption.UsageDetail{usageDetail, usageDetail3}
+	partialUsageSlice  = []consumption.UsageDetail{partialUsageDetail}
 )
 
 // Input data for setting up mocks
 var (
-	testInput  = inputData{subscription: subscription1, billingPeriod: period, usageDetails: usageSlice}
-	testInput2 = inputData{subscription: subscription2, billingPeriod: period, usageDetails: usageSlice2}
-	testInput3 = inputData{subscription: subscription1, billingPeriod: period, usageDetails: usageSlice3}
 	// These inputs correspond to the cloud costs above
-	input  = []inputData{testInput}
-	input2 = []inputData{testInput2}
-	input3 = []inputData{testInput3}
+	input        = []inputData{{subscription: subscription1, billingPeriod: period, usageDetails: usageSlice}}
+	input2       = []inputData{{subscription: subscription2, billingPeriod: period, usageDetails: usageSlice2}}
+	input3       = []inputData{{subscription: subscription1, billingPeriod: period, usageDetails: usageSlice3}}
+	partialInput = []inputData{{subscription: subscription1, billingPeriod: period, usageDetails: partialUsageSlice}}
 )
 
 func TestGetCloudCost(t *testing.T) {
@@ -97,6 +99,31 @@ func TestGetCloudCost(t *testing.T) {
 	mockUsageIter := NewMockusageIterator(mockCtrl)
 	mockClient := NewMockClient(mockCtrl)
 	ue := UsageExplorer{client: mockClient}
+
+	cases := []struct {
+		in   []inputData
+		want []dbclient.UsageData
+	}{
+		{input, cloudCost},        // Single subscription and instance
+		{input2, cloudCost2},      // Two subscriptions and instances
+		{input3, cloudCost3},      // Two instances and one subscription
+		{partialInput, emptyCost}, // Missing properties: not abel to calculate cost
+	}
+
+	for _, c := range cases {
+		setupClient(*mockClient, mockSubscriptionsIter, mockPeriodsIter, mockUsageIter, c.in)
+		setupIterators(*mockSubscriptionsIter, *mockPeriodsIter, *mockUsageIter, c.in)
+
+		actual, err := ue.GetCloudCost(usageDate)
+		if err != nil {
+			t.Errorf("Caught error: %s", err)
+		}
+
+		checkCloudCost(t, c.want, actual)
+	}
+
+	// Some special cases
+	// ------------------
 
 	t.Run("Fail to get subscriptions iterator", func(t *testing.T) {
 		mockClient.EXPECT().getSubscriptionIterator().Return(mockSubscriptionsIter, errors.New("error"))
@@ -139,69 +166,10 @@ func TestGetCloudCost(t *testing.T) {
 			t.Errorf("Expected error but got none!")
 		}
 	})
-
-	t.Run("Get partial cloud cost", func(t *testing.T) {
-		// Properties are missing
-		partial := consumption.UsageDetail{ID: &periodID, Name: &periodName, UsageDetailProperties: nil}
-		partialUsageSlice := []consumption.UsageDetail{partial}
-		partialInput := inputData{subscription: subscription1, billingPeriod: period, usageDetails: partialUsageSlice}
-
-		setupClient(*mockClient, mockSubscriptionsIter, mockPeriodsIter, mockUsageIter, input)
-		setupIterators(*mockSubscriptionsIter, *mockPeriodsIter, *mockUsageIter, []inputData{partialInput})
-
-		// We expect no data because of the missing properties
-		expected := []dbclient.UsageData{}
-		actual, err := ue.GetCloudCost(usageDate)
-
-		if err != nil {
-			t.Errorf("Caught error: %s", err)
-		}
-
-		checkCloudCost(t, expected, actual)
-	})
-
-	t.Run("Get cloud cost", func(t *testing.T) {
-		setupClient(*mockClient, mockSubscriptionsIter, mockPeriodsIter, mockUsageIter, input)
-		setupIterators(*mockSubscriptionsIter, *mockPeriodsIter, *mockUsageIter, input)
-
-		expected := cloudCost
-		actual, err := ue.GetCloudCost(usageDate)
-
-		if err != nil {
-			t.Errorf("Caught error: %s", err)
-		}
-
-		checkCloudCost(t, expected, actual)
-	})
-
-	t.Run("Get multiple subscription cost", func(t *testing.T) {
-		setupClient(*mockClient, mockSubscriptionsIter, mockPeriodsIter, mockUsageIter, input2)
-		setupIterators(*mockSubscriptionsIter, *mockPeriodsIter, *mockUsageIter, input2)
-
-		expected := cloudCost2
-		actual, err := ue.GetCloudCost(usageDate)
-
-		if err != nil {
-			t.Errorf("Caught error: %s", err)
-		}
-
-		checkCloudCost(t, expected, actual)
-	})
-
-	t.Run("Get multiple instance cost", func(t *testing.T) {
-		setupClient(*mockClient, mockSubscriptionsIter, mockPeriodsIter, mockUsageIter, input3)
-		setupIterators(*mockSubscriptionsIter, *mockPeriodsIter, *mockUsageIter, input3)
-
-		expected := cloudCost3
-		actual, err := ue.GetCloudCost(usageDate)
-
-		if err != nil {
-			t.Errorf("Caught error: %s", err)
-		}
-
-		checkCloudCost(t, expected, actual)
-	})
 }
+
+// Helper functions
+// ----------------
 
 // Create a UsageDetail object from the provided input
 func fakeUsageDetail(usageDate time.Time, cost float64, currency string, instanceID string) consumption.UsageDetail {
