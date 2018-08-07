@@ -30,6 +30,7 @@ func (e *UsageExplorer) GetCloudCost(date time.Time) ([]dbclient.UsageData, erro
 		return data, err
 	}
 	for _, sub := range subscriptions {
+		log.Println("Trying to get cost for subscription", sub)
 		subCost, err := e.getSubscriptionCost(sub, date)
 		if err == nil {
 			data = append(data, subCost...)
