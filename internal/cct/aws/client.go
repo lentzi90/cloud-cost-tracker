@@ -3,15 +3,16 @@ package aws
 
 import (
 	"encoding/csv"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/lentzi90/cloud-cost-tracker/internal/cct/dbclient"
 	"io"
 	"math"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/lentzi90/cloud-cost-tracker/internal/cct/dbclient"
 )
 
 // Client represents a connection to an aws S3 bucket
@@ -108,7 +109,10 @@ func (client *Client) GetCloudCost(timestamp time.Time) ([]dbclient.UsageData, e
 	form := "2006-01-02T15:04:05Z"
 
 	// Calculate the correct key
-	key := client.getBucketKey(timestamp)
+	key, err := client.getBucketKey(timestamp)
+	if err != nil {
+		return nil, err
+	}
 
 	// Get table from bucket with key using query
 	tbl, err := client.getTable(key, query)
@@ -171,7 +175,7 @@ func selectKey(objects []*s3.Object, date string) string {
 	return key
 }
 
-func (client *Client) getBucketKey(timestamp time.Time) string {
+func (client *Client) getBucketKey(timestamp time.Time) (string, error) {
 	params := &s3.ListObjectsInput{
 		Bucket: aws.String(client.bucket),
 		Prefix: aws.String("daily-report/test-usage-report"),
@@ -182,8 +186,12 @@ func (client *Client) getBucketKey(timestamp time.Time) string {
 	stop := start.AddDate(0, 1, 0)
 	date := start.Format(form) + "-" + stop.Format(form)
 
-	resp, _ := client.service.ListObjects(params)
+	resp, err := client.service.ListObjects(params)
+	if err != nil {
+		return "", err
+	}
+
 	key := selectKey(resp.Contents, date)
 
-	return key
+	return key, nil
 }
